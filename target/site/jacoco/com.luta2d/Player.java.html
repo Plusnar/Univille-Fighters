@@ -1,0 +1,1436 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Player.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">Player.java</span></div><h1>Player.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Image;
+import javax.swing.ImageIcon;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
+import java.awt.Font;
+import javax.swing.Timer;
+
+public class Player {
+    private Character character;
+    private int x, y;
+<span class="fc" id="L20">    private int width = 400, height = 400;</span>
+<span class="fc" id="L21">    private int vy = 0;</span>
+<span class="fc" id="L22">    private boolean jumping = false;</span>
+<span class="fc" id="L23">    private boolean crouching = false;</span>
+<span class="fc" id="L24">    private boolean blocking = false;</span>
+<span class="fc" id="L25">    private boolean facingRight = true;</span>
+    private final int groundY;
+    private static Image characterImage; // Imagem estática compartilhada entre todos os jogadores
+    private Player opponent; // Referência ao oponente
+    
+    // Configurações de movimento
+    private final int moveSpeed;
+    private final int jumpHeight;
+    private final double attackDamage;
+    private final double blockReduction;
+<span class="fc" id="L35">    private final int gravity = 2;</span>
+<span class="fc" id="L36">    private final int maxFallSpeed = 20;</span>
+<span class="fc" id="L37">    private final int jumpStartSpeed = -25;</span>
+<span class="fc" id="L38">    private final int attackCooldown = 500; // 500ms entre ataques</span>
+<span class="fc" id="L39">    private long lastAttackTime = 0;</span>
+<span class="fc" id="L40">    private final int specialAttackCooldown = 20000; // 20 segundos de cooldown para o especial</span>
+<span class="fc" id="L41">    private long lastSpecialAttackTime = 0;</span>
+<span class="fc" id="L42">    private final int attackAnimationDuration = 500; // ms for attack animation to have priority</span>
+<span class="fc" id="L43">    private long lastDamageTime = 0;</span>
+<span class="fc" id="L44">    private final int damageAnimationDuration = 400; // ms for hit stun animation</span>
+<span class="fc" id="L45">    private boolean knockedOut = false;</span>
+<span class="fc" id="L46">    private boolean isKnockedBack = false;</span>
+<span class="fc" id="L47">    private long knockbackEndTime = 0;</span>
+<span class="fc" id="L48">    private int knockbackVx = 0;</span>
+<span class="fc" id="L49">    private double rotationAngle = 0;</span>
+<span class="fc" id="L50">    private double rotationSpeed = 0;</span>
+    
+    // Sistema de finalização
+<span class="fc" id="L53">    private boolean canBeFinished = false;</span>
+<span class="fc" id="L54">    private boolean isBeingFinished = false;</span>
+<span class="fc" id="L55">    private long finishStartTime = 0;</span>
+<span class="fc" id="L56">    private final int finishAnimationDuration = 3000; // 3 segundos para a finalização</span>
+<span class="fc" id="L57">    private boolean finalKnockback = false;</span>
+<span class="fc" id="L58">    private int finalKnockbackVx = 0;</span>
+<span class="fc" id="L59">    private int finalKnockbackVy = 0;</span>
+
+    // Novo sistema de animação por spritesheet
+<span class="fc" id="L62">    private class Animation {</span>
+        Image spritesheet;
+        int frameWidth;
+        int frameHeight;
+        int frameCount;
+        int frameDuration; // Duração específica para cada animação
+    }
+<span class="fc" id="L69">    private Map&lt;String, Animation&gt; animations = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L70">    private String currentAnimation = &quot;parado&quot;;</span>
+<span class="fc" id="L71">    private int currentFrame = 0;</span>
+<span class="fc" id="L72">    private long lastFrameTime = 0;</span>
+<span class="fc" id="L73">    private final int defaultFrameDuration = 50; // ms por frame (padrão)</span>
+    private String characterFolder;
+
+    // Efeito de sangue
+    private static class BloodEffect {
+        int x, y;
+<span class="nc" id="L79">        int currentFrame = 0;</span>
+<span class="nc" id="L80">        long lastFrameTime = 0;</span>
+        int frameCount;
+        int frameWidth;
+        int frameHeight;
+        BufferedImage spritesheet;
+<span class="nc" id="L85">        boolean finished = false;</span>
+<span class="nc" id="L86">        public BloodEffect(int x, int y, BufferedImage spritesheet, int frameCount, int frameWidth, int frameHeight) {</span>
+<span class="nc" id="L87">            this.x = x;</span>
+<span class="nc" id="L88">            this.y = y;</span>
+<span class="nc" id="L89">            this.spritesheet = spritesheet;</span>
+<span class="nc" id="L90">            this.frameCount = frameCount;</span>
+<span class="nc" id="L91">            this.frameWidth = frameWidth;</span>
+<span class="nc" id="L92">            this.frameHeight = frameHeight;</span>
+<span class="nc" id="L93">            this.lastFrameTime = System.currentTimeMillis();</span>
+<span class="nc" id="L94">        }</span>
+    }
+<span class="fc" id="L96">    private java.util.List&lt;BloodEffect&gt; bloodEffects = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L97">    private static BufferedImage bloodSpritesheet = null;</span>
+<span class="fc" id="L98">    private static int bloodFrameCount = 0;</span>
+<span class="fc" id="L99">    private static int bloodFrameWidth = 0;</span>
+<span class="fc" id="L100">    private static int bloodFrameHeight = 0;</span>
+<span class="fc" id="L101">    private static boolean bloodLoaded = false;</span>
+
+<span class="fc" id="L103">    private static Image shadowImage = null;</span>
+
+    // Sistema de números de dano flutuantes
+    private static class DamageNumber {
+        int x, y;
+        int damage;
+        long creationTime;
+<span class="nc" id="L110">        int vy = -2; // Velocidade vertical (sobe)</span>
+<span class="nc" id="L111">        int vx = 0; // Velocidade horizontal (pode ser aleatória)</span>
+<span class="nc" id="L112">        boolean finished = false;</span>
+        Color color;
+        
+<span class="nc" id="L115">        public DamageNumber(int x, int y, int damage, boolean isSpecial) {</span>
+<span class="nc" id="L116">            this.x = x;</span>
+<span class="nc" id="L117">            this.y = y;</span>
+<span class="nc" id="L118">            this.damage = damage;</span>
+<span class="nc" id="L119">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L120">            this.vx = (int)(Math.random() * 6 - 3); // Movimento horizontal aleatório</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            this.color = isSpecial ? Color.RED : Color.YELLOW; // Vermelho para golpes especiais</span>
+<span class="nc" id="L122">        }</span>
+        
+        public void update() {
+<span class="nc" id="L125">            x += vx;</span>
+<span class="nc" id="L126">            y += vy;</span>
+<span class="nc" id="L127">            vy += 1; // Gravidade faz o número descer</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (System.currentTimeMillis() - creationTime &gt; 2000) { // 2 segundos de vida</span>
+<span class="nc" id="L129">                finished = true;</span>
+            }
+<span class="nc" id="L131">        }</span>
+    }
+<span class="fc" id="L133">    private java.util.List&lt;DamageNumber&gt; damageNumbers = new ArrayList&lt;&gt;();</span>
+
+    // Sistema de projétil para Jean
+    private static class Projectile {
+        int x, y;
+<span class="nc" id="L138">        int width = 300, height = 85; // Tamanho do giz.png</span>
+        boolean facingRight;
+<span class="nc" id="L140">        int speed = 12;</span>
+<span class="nc" id="L141">        boolean active = false;</span>
+        long creationTime;
+<span class="nc" id="L143">        final long maxLifetime = 3000; // 3 segundos de vida máxima</span>
+        
+<span class="nc" id="L145">        public Projectile(int x, int y, boolean facingRight) {</span>
+<span class="nc" id="L146">            this.x = x;</span>
+<span class="nc" id="L147">            this.y = y;</span>
+<span class="nc" id="L148">            this.facingRight = facingRight;</span>
+<span class="nc" id="L149">            this.active = true;</span>
+<span class="nc" id="L150">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L151">        }</span>
+        
+        public void update() {
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            if (!active) return;</span>
+            
+            // Move o projétil na direção que o Jean está olhando
+<span class="nc bnc" id="L157" title="All 2 branches missed.">            if (facingRight) {</span>
+<span class="nc" id="L158">                x += speed;</span>
+            } else {
+<span class="nc" id="L160">                x -= speed;</span>
+            }
+            
+            // Verifica se o projétil expirou
+<span class="nc bnc" id="L164" title="All 2 branches missed.">            if (System.currentTimeMillis() - creationTime &gt; maxLifetime) {</span>
+<span class="nc" id="L165">                active = false;</span>
+            }
+<span class="nc" id="L167">        }</span>
+        
+        public boolean isCollidingWith(Player player) {
+<span class="nc bnc" id="L170" title="All 2 branches missed.">            if (!active) return false;</span>
+            
+            // Hitbox do projétil (giz)
+<span class="nc" id="L173">            int projLeft = x;</span>
+<span class="nc" id="L174">            int projRight = x + width;</span>
+<span class="nc" id="L175">            int projTop = y;</span>
+<span class="nc" id="L176">            int projBottom = y + height;</span>
+            
+            // Define a hitbox do jogador mais estreita (150px de largura) e centralizada
+<span class="nc" id="L179">            int playerHitboxWidth = 150;</span>
+<span class="nc" id="L180">            int playerLeft = player.getX() + (player.getWidth() - playerHitboxWidth) / 2;</span>
+<span class="nc" id="L181">            int playerRight = playerLeft + playerHitboxWidth;</span>
+<span class="nc" id="L182">            int playerTop = player.getY();</span>
+<span class="nc" id="L183">            int playerBottom = player.getY() + player.getHeight();</span>
+            
+            // Verifica colisão
+<span class="nc bnc" id="L186" title="All 8 branches missed.">            if (projRight &gt;= playerLeft &amp;&amp; projLeft &lt;= playerRight &amp;&amp;</span>
+                projBottom &gt;= playerTop &amp;&amp; projTop &lt;= playerBottom) {
+<span class="nc" id="L188">                return true;</span>
+            }
+            
+<span class="nc" id="L191">            return false;</span>
+        }
+    }
+    
+    // Sistema de raio para Anna
+    private static class LightningEffect {
+        int x, y;
+<span class="nc" id="L198">        int width = 400, height = 1100; // Dimensões do raio.png</span>
+<span class="nc" id="L199">        boolean active = false;</span>
+        long creationTime;
+<span class="nc" id="L201">        final long fallDuration = 800; // 800ms para o raio cair</span>
+<span class="nc" id="L202">        final long hitDuration = 300; // 300ms para o efeito de dano</span>
+<span class="nc" id="L203">        boolean hasHit = false;</span>
+        int groundY; // Adiciona groundY como campo da classe
+        
+<span class="nc" id="L206">        public LightningEffect(int targetX, int groundY) {</span>
+            // Centraliza o raio na posição do alvo
+<span class="nc" id="L208">            this.x = targetX - (width / 2);</span>
+<span class="nc" id="L209">            this.y = -height; // Começa acima da tela</span>
+<span class="nc" id="L210">            this.active = true;</span>
+<span class="nc" id="L211">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L212">            this.groundY = groundY; // Armazena o groundY</span>
+<span class="nc" id="L213">        }</span>
+        
+        public void update() {
+<span class="nc bnc" id="L216" title="All 2 branches missed.">            if (!active) return;</span>
+            
+<span class="nc" id="L218">            long elapsed = System.currentTimeMillis() - creationTime;</span>
+            
+<span class="nc bnc" id="L220" title="All 2 branches missed.">            if (elapsed &lt; fallDuration) {</span>
+                // Calcula a posição Y durante a queda
+<span class="nc" id="L222">                float progress = (float) elapsed / fallDuration;</span>
+<span class="nc" id="L223">                this.y = (int) (-height + (progress * (groundY + height)));</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            } else if (elapsed &lt; fallDuration + hitDuration) {</span>
+                // Raio atingiu o chão, mantém posição
+<span class="nc" id="L226">                this.y = groundY;</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">                if (!hasHit) {</span>
+<span class="nc" id="L228">                    hasHit = true;</span>
+                }
+            } else {
+                // Efeito terminou
+<span class="nc" id="L232">                active = false;</span>
+            }
+<span class="nc" id="L234">        }</span>
+        
+        public boolean isCollidingWith(Player player) {
+<span class="nc bnc" id="L237" title="All 4 branches missed.">            if (!active || !hasHit) return false;</span>
+            
+            // Hitbox do raio - 100 pixels de largura centralizada
+<span class="nc" id="L240">            int hitboxWidth = 100;</span>
+<span class="nc" id="L241">            int lightningCenterX = x + (width / 2);</span>
+<span class="nc" id="L242">            int lightningLeft = lightningCenterX - (hitboxWidth / 2);</span>
+<span class="nc" id="L243">            int lightningRight = lightningCenterX + (hitboxWidth / 2);</span>
+<span class="nc" id="L244">            int lightningTop = y;</span>
+<span class="nc" id="L245">            int lightningBottom = y + height;</span>
+            
+            // Hitbox do jogador
+<span class="nc" id="L248">            int playerHitboxWidth = 150;</span>
+<span class="nc" id="L249">            int playerLeft = player.getX() + (player.getWidth() - playerHitboxWidth) / 2;</span>
+<span class="nc" id="L250">            int playerRight = playerLeft + playerHitboxWidth;</span>
+<span class="nc" id="L251">            int playerTop = player.getY();</span>
+<span class="nc" id="L252">            int playerBottom = player.getY() + player.getHeight();</span>
+            
+            // Verifica colisão
+<span class="nc bnc" id="L255" title="All 8 branches missed.">            return lightningRight &gt;= playerLeft &amp;&amp; lightningLeft &lt;= playerRight &amp;&amp;</span>
+                   lightningBottom &gt;= playerTop &amp;&amp; lightningTop &lt;= playerBottom;
+        }
+    }
+    
+    // Sistema de urso para Erik
+    private static class BearEffect {
+        int x, y;
+<span class="nc" id="L263">        int width = 400, height = 987; // Dimensões do urso.png</span>
+<span class="nc" id="L264">        boolean active = false;</span>
+        long creationTime;
+<span class="nc" id="L266">        final long fallDuration = 1400; // 1400ms para o urso cair (ainda mais lento)</span>
+<span class="nc" id="L267">        final long hitDuration = 500; // 500ms para o efeito de dano (ainda mais lento)</span>
+<span class="nc" id="L268">        boolean hasHit = false;</span>
+        int groundY; // Adiciona groundY como campo da classe
+        
+<span class="nc" id="L271">        public BearEffect(int targetX, int groundY) {</span>
+            // Centraliza o urso na posição do alvo
+<span class="nc" id="L273">            this.x = targetX - (width / 2);</span>
+<span class="nc" id="L274">            this.y = -height; // Começa acima da tela</span>
+<span class="nc" id="L275">            this.active = true;</span>
+<span class="nc" id="L276">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L277">            this.groundY = groundY; // Armazena o groundY</span>
+<span class="nc" id="L278">        }</span>
+        
+        public void update() {
+<span class="nc bnc" id="L281" title="All 2 branches missed.">            if (!active) return;</span>
+            
+<span class="nc" id="L283">            long elapsed = System.currentTimeMillis() - creationTime;</span>
+            
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            if (elapsed &lt; fallDuration) {</span>
+                // Calcula a posição Y durante a queda
+<span class="nc" id="L287">                float progress = (float) elapsed / fallDuration;</span>
+<span class="nc" id="L288">                this.y = (int) (-height + (progress * (groundY + height)));</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">            } else if (elapsed &lt; fallDuration + hitDuration) {</span>
+                // Urso atingiu o chão, mantém posição
+<span class="nc" id="L291">                this.y = groundY;</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">                if (!hasHit) {</span>
+<span class="nc" id="L293">                    hasHit = true;</span>
+                }
+            } else {
+                // Efeito terminou
+<span class="nc" id="L297">                active = false;</span>
+            }
+<span class="nc" id="L299">        }</span>
+        
+        public boolean isCollidingWith(Player player) {
+<span class="nc bnc" id="L302" title="All 4 branches missed.">            if (!active || !hasHit) return false;</span>
+            
+            // Hitbox do urso - 150 pixels de largura centralizada
+<span class="nc" id="L305">            int hitboxWidth = 150;</span>
+<span class="nc" id="L306">            int bearCenterX = x + (width / 2);</span>
+<span class="nc" id="L307">            int bearLeft = bearCenterX - (hitboxWidth / 2);</span>
+<span class="nc" id="L308">            int bearRight = bearCenterX + (hitboxWidth / 2);</span>
+<span class="nc" id="L309">            int bearTop = y;</span>
+<span class="nc" id="L310">            int bearBottom = y + height;</span>
+            
+            // Hitbox do jogador
+<span class="nc" id="L313">            int playerHitboxWidth = 150;</span>
+<span class="nc" id="L314">            int playerLeft = player.getX() + (player.getWidth() - playerHitboxWidth) / 2;</span>
+<span class="nc" id="L315">            int playerRight = playerLeft + playerHitboxWidth;</span>
+<span class="nc" id="L316">            int playerTop = player.getY();</span>
+<span class="nc" id="L317">            int playerBottom = player.getY() + player.getHeight();</span>
+            
+            // Verifica colisão
+<span class="nc bnc" id="L320" title="All 8 branches missed.">            return bearRight &gt;= playerLeft &amp;&amp; bearLeft &lt;= playerRight &amp;&amp;</span>
+                   bearBottom &gt;= playerTop &amp;&amp; bearTop &lt;= playerBottom;
+        }
+    }
+    
+<span class="fc" id="L325">    private Projectile currentProjectile = null;</span>
+<span class="fc" id="L326">    private static Image projectileImage = null; // Imagem do giz.png</span>
+    
+    // Efeito de raio da Anna
+<span class="fc" id="L329">    private LightningEffect currentLightning = null;</span>
+<span class="fc" id="L330">    private static Image lightningImage = null; // Imagem do raio.png</span>
+
+    // Efeito de urso do Erik
+<span class="fc" id="L333">    private BearEffect currentBear = null;</span>
+<span class="fc" id="L334">    private static Image bearImage = null; // Imagem do urso.png</span>
+
+    // Aura especial do Cesar
+<span class="fc" id="L337">    private static Image waveAuraImage = null;</span>
+<span class="fc" id="L338">    private boolean auraActive = false;</span>
+<span class="fc" id="L339">    private long auraStartTime = 0;</span>
+<span class="fc" id="L340">    private float auraAlpha = 1.0f;</span>
+<span class="fc" id="L341">    private final int auraDuration = 3000; // 3 segundos</span>
+<span class="fc" id="L342">    private final int auraFadeDuration = 500; // 0.5 segundos finais para fade</span>
+
+    private static class LapisProjectile {
+        int x, y;
+<span class="nc" id="L346">        int width = 300, height = 200; // Tamanho do lapis.png</span>
+<span class="nc" id="L347">        int speed = 16;</span>
+        boolean facingRight;
+<span class="nc" id="L349">        boolean active = false;</span>
+        long creationTime;
+<span class="nc" id="L351">        final long maxLifetime = 3000; // 3 segundos de vida máxima</span>
+<span class="nc" id="L352">        public LapisProjectile(int x, int y, boolean facingRight) {</span>
+<span class="nc" id="L353">            this.x = x;</span>
+<span class="nc" id="L354">            this.y = y;</span>
+<span class="nc" id="L355">            this.facingRight = facingRight;</span>
+<span class="nc" id="L356">            this.active = true;</span>
+<span class="nc" id="L357">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L358">        }</span>
+        public void update() {
+<span class="nc bnc" id="L360" title="All 2 branches missed.">            if (!active) return;</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">            if (facingRight) {</span>
+<span class="nc" id="L362">                x += speed;</span>
+            } else {
+<span class="nc" id="L364">                x -= speed;</span>
+            }
+<span class="nc bnc" id="L366" title="All 2 branches missed.">            if (System.currentTimeMillis() - creationTime &gt; maxLifetime) {</span>
+<span class="nc" id="L367">                active = false;</span>
+            }
+<span class="nc" id="L369">        }</span>
+        public boolean isCollidingWith(Player player) {
+<span class="nc bnc" id="L371" title="All 2 branches missed.">            if (!active) return false;</span>
+<span class="nc" id="L372">            int projLeft = x;</span>
+<span class="nc" id="L373">            int projRight = x + width;</span>
+<span class="nc" id="L374">            int projTop = y;</span>
+<span class="nc" id="L375">            int projBottom = y + height;</span>
+<span class="nc" id="L376">            int playerHitboxWidth = 150;</span>
+<span class="nc" id="L377">            int playerLeft = player.getX() + (player.getWidth() - playerHitboxWidth) / 2;</span>
+<span class="nc" id="L378">            int playerRight = playerLeft + playerHitboxWidth;</span>
+<span class="nc" id="L379">            int playerTop = player.getY();</span>
+<span class="nc" id="L380">            int playerBottom = player.getY() + player.getHeight();</span>
+<span class="nc bnc" id="L381" title="All 8 branches missed.">            return projRight &gt;= playerLeft &amp;&amp; projLeft &lt;= playerRight &amp;&amp;</span>
+                   projBottom &gt;= playerTop &amp;&amp; projTop &lt;= playerBottom;
+        }
+    }
+<span class="fc" id="L385">    private LapisProjectile currentLapis = null;</span>
+<span class="fc" id="L386">    private static Image lapisImage = null; // Imagem do lapis.png</span>
+
+    // Clone da Giovana
+    private static class GiovanaClone {
+        int x, y;
+        boolean facingRight;
+        long creationTime;
+<span class="nc" id="L393">        float alpha = 1.0f;</span>
+        static final long DURATION = 5000; // 5 segundos
+<span class="nc" id="L395">        public GiovanaClone(int x, int y, boolean facingRight) {</span>
+<span class="nc" id="L396">            this.x = x;</span>
+<span class="nc" id="L397">            this.y = y;</span>
+<span class="nc" id="L398">            this.facingRight = facingRight;</span>
+<span class="nc" id="L399">            this.creationTime = System.currentTimeMillis();</span>
+<span class="nc" id="L400">        }</span>
+        public float getAlpha() {
+<span class="nc" id="L402">            long elapsed = System.currentTimeMillis() - creationTime;</span>
+<span class="nc bnc" id="L403" title="All 2 branches missed.">            if (elapsed &gt;= DURATION) return 0f;</span>
+<span class="nc" id="L404">            return 1.0f - (float)elapsed / DURATION;</span>
+        }
+        public boolean isAlive() {
+<span class="nc bnc" id="L407" title="All 2 branches missed.">            return System.currentTimeMillis() - creationTime &lt; DURATION;</span>
+        }
+    }
+<span class="fc" id="L410">    private GiovanaClone giovanaClone = null;</span>
+
+<span class="fc" id="L412">    public Player(Character character, int x, int y, int groundY) {</span>
+<span class="fc" id="L413">        this.character = character;</span>
+<span class="fc" id="L414">        this.x = x;</span>
+<span class="fc" id="L415">        this.y = y;</span>
+<span class="fc" id="L416">        this.groundY = groundY;</span>
+        
+        // Define a direção inicial com base na posição X (maior que o meio da tela, vira pra esquerda)
+<span class="fc bfc" id="L419" title="All 2 branches covered.">        if (x &gt; 1920 / 2) {</span>
+<span class="fc" id="L420">            facingRight = false;</span>
+        }
+
+        // Configurações baseadas no personagem
+<span class="fc" id="L424">        this.moveSpeed = character.getMoveSpeed();</span>
+<span class="fc" id="L425">        this.jumpHeight = character.getJumpHeight();</span>
+<span class="fc" id="L426">        this.attackDamage = character.getAttackDamage();</span>
+<span class="fc" id="L427">        this.blockReduction = character.getBlockReduction();</span>
+<span class="fc" id="L428">        this.characterFolder = character.getName().toLowerCase();</span>
+<span class="fc" id="L429">        loadAnimations();</span>
+        
+        // Carrega a imagem do personagem apenas uma vez
+<span class="fc bfc" id="L432" title="All 2 branches covered.">        if (characterImage == null) {</span>
+            try {
+<span class="fc" id="L434">                characterImage = new ImageIcon(getClass().getResource(&quot;/images/char.png&quot;)).getImage();</span>
+<span class="nc" id="L435">            } catch (Exception e) {</span>
+<span class="nc" id="L436">                System.err.println(&quot;Erro ao carregar imagem do personagem: &quot; + e.getMessage());</span>
+<span class="fc" id="L437">            }</span>
+        }
+
+        // Carrega a sombra apenas uma vez
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        if (shadowImage == null) {</span>
+            try {
+<span class="fc" id="L443">                shadowImage = new ImageIcon(getClass().getResource(&quot;/images/sombra.png&quot;)).getImage();</span>
+<span class="nc" id="L444">            } catch (Exception e) {</span>
+<span class="nc" id="L445">                System.err.println(&quot;Erro ao carregar sombra: &quot; + e.getMessage());</span>
+<span class="fc" id="L446">            }</span>
+        }
+
+        // Carrega a imagem do raio apenas uma vez
+<span class="fc bfc" id="L450" title="All 2 branches covered.">        if (lightningImage == null) {</span>
+            try {
+<span class="fc" id="L452">                lightningImage = new ImageIcon(getClass().getResource(&quot;/images/effects/raio.png&quot;)).getImage();</span>
+<span class="nc" id="L453">            } catch (Exception e) {</span>
+<span class="nc" id="L454">                System.err.println(&quot;Erro ao carregar raio.png: &quot; + e.getMessage());</span>
+<span class="fc" id="L455">            }</span>
+        }
+
+        // Carrega a imagem do giz para o projétil do Jean
+<span class="fc bfc" id="L459" title="All 2 branches covered.">        if (projectileImage == null) {</span>
+            try {
+<span class="fc" id="L461">                projectileImage = new ImageIcon(getClass().getResource(&quot;/images/effects/giz.png&quot;)).getImage();</span>
+<span class="nc" id="L462">            } catch (Exception e) {</span>
+<span class="nc" id="L463">                System.err.println(&quot;Erro ao carregar giz: &quot; + e.getMessage());</span>
+<span class="fc" id="L464">            }</span>
+        }
+
+        // Carrega a imagem da aura do Cesar apenas uma vez
+<span class="fc bfc" id="L468" title="All 2 branches covered.">        if (waveAuraImage == null) {</span>
+            try {
+<span class="fc" id="L470">                waveAuraImage = new ImageIcon(getClass().getResource(&quot;/images/effects/wave.png&quot;)).getImage();</span>
+<span class="nc" id="L471">            } catch (Exception e) {</span>
+<span class="nc" id="L472">                System.err.println(&quot;Erro ao carregar wave.png: &quot; + e.getMessage());</span>
+<span class="fc" id="L473">            }</span>
+        }
+
+        // Carrega a imagem do urso para o Erik apenas uma vez
+<span class="fc bfc" id="L477" title="All 2 branches covered.">        if (bearImage == null) {</span>
+            try {
+<span class="fc" id="L479">                bearImage = new ImageIcon(getClass().getResource(&quot;/images/effects/urso.png&quot;)).getImage();</span>
+<span class="nc" id="L480">            } catch (Exception e) {</span>
+<span class="nc" id="L481">                System.err.println(&quot;Erro ao carregar urso.png: &quot; + e.getMessage());</span>
+<span class="fc" id="L482">            }</span>
+        }
+
+        // Carrega a imagem do lápis para o William
+<span class="fc bfc" id="L486" title="All 2 branches covered.">        if (lapisImage == null) {</span>
+            try {
+<span class="fc" id="L488">                lapisImage = new ImageIcon(getClass().getResource(&quot;/images/effects/lapis.png&quot;)).getImage();</span>
+<span class="nc" id="L489">            } catch (Exception e) {</span>
+<span class="nc" id="L490">                System.err.println(&quot;Erro ao carregar lapis.png: &quot; + e.getMessage());</span>
+<span class="fc" id="L491">            }</span>
+        }
+<span class="fc" id="L493">    }</span>
+
+    private void loadAnimations() {
+<span class="fc" id="L496">        String[] anims = {&quot;parado&quot;, &quot;andando&quot;, &quot;agachar&quot;, &quot;pulo&quot;, &quot;soco&quot;, &quot;chute&quot;, &quot;bloqueio&quot;, &quot;golpe_especial&quot;, &quot;tonto&quot;, &quot;dano&quot;};</span>
+<span class="fc bfc" id="L497" title="All 2 branches covered.">        for (String anim : anims) {</span>
+<span class="fc" id="L498">            String path = String.format(&quot;/images/characters/%s/%s.png&quot;, characterFolder, anim);</span>
+            try {
+<span class="fc" id="L500">                ImageIcon icon = new ImageIcon(getClass().getResource(path));</span>
+<span class="fc" id="L501">                Image spritesheet = icon.getImage();</span>
+
+                // Define as dimensões e calcula a contagem de frames dinamicamente
+<span class="fc" id="L504">                int frameWidth = 400;</span>
+<span class="fc" id="L505">                int frameHeight = 400;</span>
+<span class="fc" id="L506">                int frameCount = 1; // Padrão de 1 frame se a imagem não carregar</span>
+
+<span class="pc bpc" id="L508" title="2 of 4 branches missed.">                if (spritesheet != null &amp;&amp; icon.getIconWidth() &gt; 0) {</span>
+<span class="fc" id="L509">                    frameCount = icon.getIconWidth() / frameWidth;</span>
+                    // Adiciona um aviso se a largura não for um múltiplo perfeito
+                    // if (icon.getIconWidth() % frameWidth != 0) {
+                    //     System.err.println(&quot;Aviso: A largura do spritesheet &quot; + path + &quot; não é um múltiplo perfeito de &quot; + frameWidth);
+                    // }
+                }
+                
+                // Define durações específicas para cada animação
+<span class="fc" id="L517">                int frameDuration = defaultFrameDuration; // Duração padrão</span>
+<span class="pc bpc" id="L518" title="1 of 11 branches missed.">                switch (anim) {</span>
+                    case &quot;parado&quot;:
+<span class="fc" id="L520">                        frameDuration = 50; // Animação parado padronizada</span>
+<span class="fc" id="L521">                        break;</span>
+                    case &quot;andando&quot;:
+<span class="fc" id="L523">                        frameDuration = 50; // Animação andando padronizada</span>
+<span class="fc" id="L524">                        break;</span>
+                    case &quot;agachar&quot;:
+<span class="fc" id="L526">                        frameDuration = 50; // Animação agachar padronizada</span>
+<span class="fc" id="L527">                        break;</span>
+                    case &quot;pulo&quot;:
+<span class="fc" id="L529">                        frameDuration = 50; // Animação pulo padronizada</span>
+<span class="fc" id="L530">                        break;</span>
+                    case &quot;soco&quot;:
+<span class="fc" id="L532">                        frameDuration = 50; // Animação soco padronizada</span>
+<span class="fc" id="L533">                        break;</span>
+                    case &quot;chute&quot;:
+<span class="fc" id="L535">                        frameDuration = 50; // Animação chute padronizada</span>
+<span class="fc" id="L536">                        break;</span>
+                    case &quot;bloqueio&quot;:
+<span class="fc" id="L538">                        frameDuration = 50; // Animação bloqueio padronizada</span>
+<span class="fc" id="L539">                        break;</span>
+                    case &quot;golpe_especial&quot;:
+<span class="fc" id="L541">                        frameDuration = 50; // Animação golpe especial padronizada</span>
+<span class="fc" id="L542">                        break;</span>
+                    case &quot;tonto&quot;:
+<span class="fc" id="L544">                        frameDuration = 50; // Animação tonto padronizada</span>
+<span class="fc" id="L545">                        break;</span>
+                    case &quot;dano&quot;:
+<span class="fc" id="L547">                        frameDuration = 50; // Animação dano padronizada</span>
+                        break;
+                }
+                
+<span class="fc" id="L551">                Animation animation = new Animation();</span>
+<span class="fc" id="L552">                animation.spritesheet = spritesheet;</span>
+<span class="fc" id="L553">                animation.frameWidth = frameWidth;</span>
+<span class="fc" id="L554">                animation.frameHeight = frameHeight;</span>
+<span class="fc" id="L555">                animation.frameCount = frameCount;</span>
+<span class="fc" id="L556">                animation.frameDuration = frameDuration; // Duração específica para cada animação</span>
+<span class="fc" id="L557">                animations.put(anim, animation);</span>
+<span class="nc" id="L558">            } catch (Exception e) {</span>
+                // fallback: não encontrou spritesheet
+<span class="nc" id="L560">                System.err.println(&quot;Aviso: Spritesheet não encontrado para &quot; + characterFolder + &quot;/&quot; + anim);</span>
+<span class="fc" id="L561">            }</span>
+        }
+        // fallback: se não houver spritesheet, usa char.png
+<span class="pc bpc" id="L564" title="1 of 2 branches missed.">        if (animations.get(&quot;parado&quot;) == null) {</span>
+<span class="nc" id="L565">            Animation fallback = new Animation();</span>
+<span class="nc" id="L566">            fallback.spritesheet = new ImageIcon(getClass().getResource(&quot;/images/char.png&quot;)).getImage();</span>
+<span class="nc" id="L567">            fallback.frameWidth = width;</span>
+<span class="nc" id="L568">            fallback.frameHeight = height;</span>
+<span class="nc" id="L569">            fallback.frameCount = 1;</span>
+<span class="nc" id="L570">            fallback.frameDuration = 50; // Duração padronizada para o fallback também</span>
+<span class="nc" id="L571">            animations.put(&quot;parado&quot;, fallback);</span>
+        }
+<span class="fc" id="L573">    }</span>
+
+    public void setOpponent(Player opponent) {
+<span class="fc" id="L576">        this.opponent = opponent;</span>
+<span class="fc" id="L577">    }</span>
+
+    private void performAttack(Player opponent, String animationName, double damageMultiplier) {
+<span class="nc bnc" id="L580" title="All 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        if (opponent == null) return;</span>
+
+<span class="nc" id="L583">        long currentTime = System.currentTimeMillis();</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">        if (currentTime - lastAttackTime &lt; attackCooldown) {</span>
+<span class="nc" id="L585">            return;</span>
+        }
+
+<span class="nc" id="L588">        lastAttackTime = currentTime;</span>
+<span class="nc" id="L589">        setAnimation(animationName);</span>
+
+        // Se o oponente estiver agachado e o ataque for um soco, o ataque não acerta.
+<span class="nc bnc" id="L592" title="All 4 branches missed.">        if (opponent.isCrouching() &amp;&amp; animationName.equals(&quot;soco&quot;)) {</span>
+<span class="nc" id="L593">            return; // O ataque erra, mas a animação do atacante e o cooldown ocorrem.</span>
+        }
+
+<span class="nc" id="L596">        int distance = Math.abs(this.x - opponent.x);</span>
+<span class="nc bnc" id="L597" title="All 2 branches missed.">        boolean isInRange = distance &lt; character.getAttackRange();</span>
+
+<span class="nc bnc" id="L599" title="All 2 branches missed.">        if (isInRange) {</span>
+<span class="nc" id="L600">            double finalDamage = character.getAttackDamage() * damageMultiplier;</span>
+            // Dano é reduzido em 50% se estiver bloqueando
+<span class="nc bnc" id="L602" title="All 2 branches missed.">            double damage = opponent.isBlocking() ?</span>
+<span class="nc" id="L603">                finalDamage * character.getBlockReduction() : finalDamage;</span>
+<span class="nc" id="L604">            opponent.takeDamage((int)damage, false); // Ataque normal</span>
+        }
+<span class="nc" id="L606">    }</span>
+
+    // Métodos para atacar outro jogador
+    public void punch(Player opponent) {
+<span class="nc bnc" id="L610" title="All 2 branches missed.">        if (knockedOut) return;</span>
+<span class="nc" id="L611">        performAttack(opponent, &quot;soco&quot;, 1.0); // Usa o multiplicador base</span>
+<span class="nc" id="L612">    }</span>
+
+    public void kick(Player opponent) {
+<span class="nc bnc" id="L615" title="All 2 branches missed.">        if (knockedOut) return;</span>
+<span class="nc" id="L616">        performAttack(opponent, &quot;chute&quot;, 1.5); // Chute causa 50% mais dano</span>
+<span class="nc" id="L617">    }</span>
+
+    public void specialAttack(Player opponent) {
+<span class="nc" id="L620">        long currentTime = System.currentTimeMillis();</span>
+<span class="nc bnc" id="L621" title="All 2 branches missed.">        if (currentTime - lastSpecialAttackTime &lt; specialAttackCooldown) {</span>
+<span class="nc" id="L622">            return; // Cooldown global para todos os especiais</span>
+        }
+
+<span class="nc bnc" id="L625" title="All 7 branches missed.">        switch (character.getName()) {</span>
+            case &quot;Anna&quot;:
+<span class="nc" id="L627">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L628">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L629">                setAnimation(&quot;golpe_especial&quot;);</span>
+                
+                // Cria o efeito do raio na posição do oponente
+<span class="nc bnc" id="L632" title="All 2 branches missed.">                if (opponent != null) {</span>
+<span class="nc" id="L633">                    int targetX = opponent.getX() + (opponent.getWidth() / 2);</span>
+<span class="nc" id="L634">                    currentLightning = new LightningEffect(targetX, groundY);</span>
+<span class="nc" id="L635">                }</span>
+                break;
+
+            case &quot;Jean&quot;:
+<span class="nc bnc" id="L639" title="All 4 branches missed.">                if (currentProjectile != null &amp;&amp; currentProjectile.active) {</span>
+<span class="nc" id="L640">                    return; // Impede novo projétil se um já estiver ativo</span>
+                }
+<span class="nc" id="L642">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L643">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L644">                setAnimation(&quot;golpe_especial&quot;);</span>
+                
+                // Lógica do projétil do Jean
+<span class="nc bnc" id="L647" title="All 2 branches missed.">                int projectileX = facingRight ? x + 100 : x;</span>
+<span class="nc" id="L648">                int projectileY = y + 60;</span>
+<span class="nc" id="L649">                currentProjectile = new Projectile(projectileX, projectileY, facingRight);</span>
+<span class="nc" id="L650">                break;</span>
+
+            case &quot;Cesar&quot;:
+<span class="nc" id="L653">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L654">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L655">                setAnimation(&quot;golpe_especial&quot;);</span>
+
+                // Ativa a aura
+<span class="nc" id="L658">                auraActive = true;</span>
+<span class="nc" id="L659">                auraStartTime = System.currentTimeMillis();</span>
+<span class="nc" id="L660">                auraAlpha = 1.0f;</span>
+
+                // Lógica de ataque de curta distância do Cesar
+<span class="nc" id="L663">                int attackRange = 400; // Alcance do especial</span>
+<span class="nc" id="L664">                int distanceX = Math.abs((this.x + this.width / 2) - (opponent.getX() + opponent.getWidth() / 2));</span>
+<span class="nc bnc" id="L665" title="All 8 branches missed.">                boolean opponentIsInFront = (this.facingRight &amp;&amp; opponent.getX() &gt; this.x) || (!this.facingRight &amp;&amp; opponent.getX() &lt; this.x);</span>
+
+<span class="nc bnc" id="L667" title="All 6 branches missed.">                if (distanceX &lt; attackRange &amp;&amp; opponentIsInFront &amp;&amp; !opponent.isCrouching()) {</span>
+<span class="nc" id="L668">                    double damage = character.getSpecialAttackDamage(); // Usa o novo método</span>
+<span class="nc bnc" id="L669" title="All 2 branches missed.">                    if (opponent.isBlocking()) {</span>
+<span class="nc" id="L670">                        damage *= character.getBlockReduction();</span>
+                    }
+<span class="nc" id="L672">                    opponent.takeDamage((int)damage, true); // Golpe especial</span>
+<span class="nc" id="L673">                    opponent.applyKnockback(this.facingRight);</span>
+<span class="nc" id="L674">                }</span>
+                break;
+
+            case &quot;Erik&quot;:
+<span class="nc" id="L678">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L679">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L680">                setAnimation(&quot;golpe_especial&quot;);</span>
+                
+                // Cria o efeito do urso na posição do oponente
+<span class="nc bnc" id="L683" title="All 2 branches missed.">                if (opponent != null) {</span>
+<span class="nc" id="L684">                    int targetX = opponent.getX() + (opponent.getWidth() / 2);</span>
+<span class="nc" id="L685">                    currentBear = new BearEffect(targetX, groundY);</span>
+<span class="nc" id="L686">                }</span>
+                break;
+
+            case &quot;William&quot;:
+<span class="nc bnc" id="L690" title="All 4 branches missed.">                if (currentLapis != null &amp;&amp; currentLapis.active) {</span>
+<span class="nc" id="L691">                    return; // Impede novo lápis se um já estiver ativo</span>
+                }
+<span class="nc" id="L693">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L694">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L695">                setAnimation(&quot;golpe_especial&quot;);</span>
+<span class="nc bnc" id="L696" title="All 2 branches missed.">                int lapisX = facingRight ? x + 100 : x;</span>
+<span class="nc" id="L697">                int lapisY = y + 100;</span>
+<span class="nc" id="L698">                currentLapis = new LapisProjectile(lapisX, lapisY, facingRight);</span>
+<span class="nc" id="L699">                break;</span>
+            
+            case &quot;Giovana&quot;:
+<span class="nc" id="L702">                lastAttackTime = currentTime;</span>
+<span class="nc" id="L703">                lastSpecialAttackTime = currentTime;</span>
+<span class="nc" id="L704">                setAnimation(&quot;golpe_especial&quot;);</span>
+                // Cria o clone na posição atual
+<span class="nc" id="L706">                giovanaClone = new GiovanaClone(x, y, facingRight);</span>
+                // Teleporta para uma posição aleatória do mapa (dentro dos limites)
+<span class="nc" id="L708">                int minX = 0;</span>
+<span class="nc" id="L709">                int maxX = 1920 - width;</span>
+<span class="nc" id="L710">                int randomX = minX + (int)(Math.random() * (maxX - minX));</span>
+<span class="nc" id="L711">                this.x = randomX;</span>
+                // Mantém o mesmo Y (no chão)
+                break;
+            
+            // Outros personagens podem ser adicionados aqui
+        }
+<span class="nc" id="L717">    }</span>
+
+    public boolean isAttacking() {
+<span class="pc bpc" id="L720" title="1 of 2 branches missed.">        return System.currentTimeMillis() - lastAttackTime &lt; attackAnimationDuration;</span>
+    }
+
+    public boolean isAttackingWithProjectile() {
+<span class="pc bpc" id="L724" title="3 of 4 branches missed.">        return currentProjectile != null &amp;&amp; currentProjectile.active;</span>
+    }
+
+    public boolean isAttackingWithLightning() {
+<span class="pc bpc" id="L728" title="3 of 4 branches missed.">        return currentLightning != null &amp;&amp; currentLightning.active;</span>
+    }
+
+    public boolean isAttackingWithBear() {
+<span class="pc bpc" id="L732" title="3 of 4 branches missed.">        return currentBear != null &amp;&amp; currentBear.active;</span>
+    }
+
+    public boolean isTakingDamage() {
+<span class="pc bpc" id="L736" title="1 of 2 branches missed.">        return System.currentTimeMillis() - lastDamageTime &lt; damageAnimationDuration;</span>
+    }
+
+    public void update() {
+        // Knockback final (arremesso para fora da tela)
+<span class="pc bpc" id="L741" title="1 of 2 branches missed.">        if (finalKnockback) {</span>
+<span class="nc" id="L742">            x += finalKnockbackVx;</span>
+<span class="nc" id="L743">            y += finalKnockbackVy;</span>
+<span class="nc" id="L744">            finalKnockbackVy += 2; // Gravidade</span>
+<span class="nc" id="L745">            rotationAngle += 0.8; // Rotação mais rápida durante o voo</span>
+<span class="nc" id="L746">            return; // Não atualiza mais nada</span>
+        }
+
+<span class="pc bpc" id="L749" title="1 of 2 branches missed.">        if (isKnockedBack) {</span>
+<span class="nc bnc" id="L750" title="All 2 branches missed.">            if (System.currentTimeMillis() &gt; knockbackEndTime) {</span>
+<span class="nc" id="L751">                isKnockedBack = false;</span>
+<span class="nc" id="L752">                knockbackVx = 0;</span>
+<span class="nc" id="L753">                rotationAngle = 0;</span>
+<span class="nc" id="L754">                rotationSpeed = 0;</span>
+            } else {
+<span class="nc" id="L756">                x += knockbackVx;</span>
+<span class="nc" id="L757">                rotationAngle += rotationSpeed;</span>
+            }
+        }
+
+        // Se estiver nocauteado, só mantém a animação tonto
+<span class="pc bpc" id="L762" title="1 of 2 branches missed.">        if (knockedOut) {</span>
+<span class="nc" id="L763">            setAnimation(&quot;tonto&quot;);</span>
+            // Não atualiza física nem animações de movimento
+<span class="nc" id="L765">            Animation anim = animations.getOrDefault(currentAnimation, animations.get(&quot;parado&quot;));</span>
+<span class="nc bnc" id="L766" title="All 4 branches missed.">            if (anim != null &amp;&amp; anim.frameCount &gt; 1) {</span>
+<span class="nc" id="L767">                long now = System.currentTimeMillis();</span>
+<span class="nc bnc" id="L768" title="All 2 branches missed.">                if (now - lastFrameTime &gt; anim.frameDuration) {</span>
+<span class="nc" id="L769">                    currentFrame = (currentFrame + 1) % anim.frameCount;</span>
+<span class="nc" id="L770">                    lastFrameTime = now;</span>
+                }
+            }
+<span class="nc" id="L773">            return;</span>
+        }
+
+        // --- Lógica de Física Corrigida ---
+
+        // 1. Só aplica gravidade se o jogador estiver no ar.
+        // Um jogador está no ar se sua posição Y for menor que o chão, ou se tiver velocidade para cima (início do pulo).
+<span class="pc bpc" id="L780" title="2 of 4 branches missed.">        if (y &lt; groundY - height || vy &lt; 0) {</span>
+<span class="nc" id="L781">            vy += gravity;</span>
+<span class="nc bnc" id="L782" title="All 2 branches missed.">            if (vy &gt; maxFallSpeed) {</span>
+<span class="nc" id="L783">                vy = maxFallSpeed; // Limita a velocidade de queda.</span>
+            }
+        }
+
+        // 2. Atualiza a posição Y com base na velocidade.
+<span class="fc" id="L788">        y += vy;</span>
+
+        // 3. Verifica e corrige a colisão com o chão.
+        // Isso garante que o jogador nunca caia através do chão.
+<span class="pc bpc" id="L792" title="1 of 2 branches missed.">        if (y &gt;= groundY - height) {</span>
+<span class="fc" id="L793">            y = groundY - height; // Alinha o jogador perfeitamente com o chão.</span>
+<span class="fc" id="L794">            vy = 0;               // Para o movimento vertical ao tocar o chão.</span>
+            
+<span class="pc bpc" id="L796" title="1 of 2 branches missed.">            if (jumping) {</span>
+<span class="nc" id="L797">                jumping = false;</span>
+<span class="nc bnc" id="L798" title="All 2 branches missed.">                if (currentAnimation.equals(&quot;pulo&quot;)) {</span>
+<span class="nc" id="L799">                    setAnimation(&quot;parado&quot;);</span>
+                }
+            }
+        }
+
+        // --- Fim da Lógica de Física ---
+
+        // Atualiza frame da animação
+<span class="fc" id="L807">        Animation anim = animations.getOrDefault(currentAnimation, animations.get(&quot;parado&quot;));</span>
+<span class="pc bpc" id="L808" title="2 of 4 branches missed.">        if (anim != null &amp;&amp; anim.frameCount &gt; 1) {</span>
+<span class="fc" id="L809">            long now = System.currentTimeMillis();</span>
+<span class="fc bfc" id="L810" title="All 2 branches covered.">            if (now - lastFrameTime &gt; anim.frameDuration) {</span>
+                // Se for a animação de golpe especial e chegou ao fim, volta para &quot;parado&quot;
+<span class="pc bpc" id="L812" title="3 of 4 branches missed.">                if (currentAnimation.equals(&quot;golpe_especial&quot;) &amp;&amp; currentFrame == anim.frameCount - 1) {</span>
+<span class="nc" id="L813">                    setAnimation(&quot;parado&quot;);</span>
+                } else {
+                    // Lógica para segurar o último frame ao agachar ou bloquear
+<span class="pc bpc" id="L816" title="5 of 6 branches missed.">                    boolean holdFrame = (isCrouching() &amp;&amp; currentAnimation.equals(&quot;agachar&quot;) &amp;&amp; currentFrame == anim.frameCount - 1) ||</span>
+<span class="pc bpc" id="L817" title="5 of 6 branches missed.">                                        (isBlocking() &amp;&amp; currentAnimation.equals(&quot;bloqueio&quot;) &amp;&amp; currentFrame == anim.frameCount - 1);</span>
+
+<span class="pc bpc" id="L819" title="1 of 2 branches missed.">                    if (!holdFrame) {</span>
+<span class="fc" id="L820">                        currentFrame = (currentFrame + 1) % anim.frameCount;</span>
+<span class="fc" id="L821">                        lastFrameTime = now;</span>
+                    }
+                }
+            }
+        }
+
+        // Atualiza efeitos de sangue
+<span class="fc" id="L828">        long now = System.currentTimeMillis();</span>
+<span class="pc bpc" id="L829" title="1 of 2 branches missed.">        for (BloodEffect effect : bloodEffects) {</span>
+<span class="nc bnc" id="L830" title="All 4 branches missed.">            if (!effect.finished &amp;&amp; now - effect.lastFrameTime &gt; 50) {</span>
+<span class="nc" id="L831">                effect.currentFrame++;</span>
+<span class="nc" id="L832">                effect.lastFrameTime = now;</span>
+<span class="nc bnc" id="L833" title="All 2 branches missed.">                if (effect.currentFrame &gt;= effect.frameCount) {</span>
+<span class="nc" id="L834">                    effect.finished = true;</span>
+                }
+            }
+<span class="nc" id="L837">        }</span>
+<span class="pc" id="L838">        bloodEffects.removeIf(e -&gt; e.finished);</span>
+        
+        // Atualiza números de dano flutuantes
+<span class="pc bpc" id="L841" title="1 of 2 branches missed.">        for (DamageNumber damageNum : damageNumbers) {</span>
+<span class="nc" id="L842">            damageNum.update();</span>
+<span class="nc" id="L843">        }</span>
+<span class="pc" id="L844">        damageNumbers.removeIf(d -&gt; d.finished);</span>
+        
+        // Atualiza projétil do Jean
+<span class="pc bpc" id="L847" title="1 of 2 branches missed.">        if (currentProjectile != null) {</span>
+<span class="nc" id="L848">            currentProjectile.update();</span>
+            
+            // Verifica colisão com o oponente
+<span class="nc bnc" id="L851" title="All 4 branches missed.">            if (opponent != null &amp;&amp; currentProjectile.isCollidingWith(opponent)) {</span>
+                // Se o oponente não estiver agachado, o projétil atinge
+<span class="nc bnc" id="L853" title="All 2 branches missed.">                if (!opponent.isCrouching()) {</span>
+<span class="nc" id="L854">                    double damage = character.getSpecialAttackDamage(); // Usa o novo método</span>
+<span class="nc bnc" id="L855" title="All 2 branches missed.">                    if (opponent.isBlocking()) {</span>
+<span class="nc" id="L856">                        damage *= character.getBlockReduction();</span>
+                    }
+<span class="nc" id="L858">                    opponent.takeDamage((int)damage, false);</span>
+<span class="nc" id="L859">                    opponent.applyKnockback(this.facingRight);</span>
+<span class="nc" id="L860">                    currentProjectile.active = false; // Desativa o projétil após colisão</span>
+                }
+                // Se o oponente estiver agachado, o projétil passa reto e nada acontece aqui.
+            }
+            
+            // Remove projétil inativo
+<span class="nc bnc" id="L866" title="All 2 branches missed.">            if (!currentProjectile.active) {</span>
+<span class="nc" id="L867">                currentProjectile = null;</span>
+            }
+        }
+        
+        // Atualiza raio da Anna
+<span class="pc bpc" id="L872" title="1 of 2 branches missed.">        if (currentLightning != null) {</span>
+<span class="nc" id="L873">            currentLightning.update();</span>
+            
+            // Verifica colisão com o oponente
+<span class="nc bnc" id="L876" title="All 4 branches missed.">            if (opponent != null &amp;&amp; currentLightning.isCollidingWith(opponent)) {</span>
+                // Se o oponente não estiver agachado, o raio atinge
+<span class="nc bnc" id="L878" title="All 2 branches missed.">                if (!opponent.isCrouching()) {</span>
+<span class="nc" id="L879">                    double damage = character.getSpecialAttackDamage(); // Usa o novo método</span>
+<span class="nc bnc" id="L880" title="All 2 branches missed.">                    if (opponent.isBlocking()) {</span>
+<span class="nc" id="L881">                        damage *= character.getBlockReduction();</span>
+                    }
+<span class="nc" id="L883">                    opponent.takeDamage((int)damage, true); // Golpe especial</span>
+<span class="nc" id="L884">                    opponent.applyKnockback(this.facingRight);</span>
+                }
+                // Se o oponente estiver agachado, o raio não atinge
+            }
+            
+            // Remove raio inativo
+<span class="nc bnc" id="L890" title="All 2 branches missed.">            if (!currentLightning.active) {</span>
+<span class="nc" id="L891">                currentLightning = null;</span>
+            }
+        }
+        
+        // Atualiza urso do Erik
+<span class="pc bpc" id="L896" title="1 of 2 branches missed.">        if (currentBear != null) {</span>
+<span class="nc" id="L897">            currentBear.update();</span>
+            
+            // Verifica colisão com o oponente
+<span class="nc bnc" id="L900" title="All 4 branches missed.">            if (opponent != null &amp;&amp; currentBear.isCollidingWith(opponent)) {</span>
+                // Se o oponente não estiver agachado, o urso atinge
+<span class="nc bnc" id="L902" title="All 2 branches missed.">                if (!opponent.isCrouching()) {</span>
+<span class="nc" id="L903">                    double damage = character.getSpecialAttackDamage(); // Usa o novo método</span>
+<span class="nc bnc" id="L904" title="All 2 branches missed.">                    if (opponent.isBlocking()) {</span>
+<span class="nc" id="L905">                        damage *= character.getBlockReduction();</span>
+                    }
+<span class="nc" id="L907">                    opponent.takeDamage((int)damage, true); // Golpe especial</span>
+<span class="nc" id="L908">                    opponent.applyKnockback(this.facingRight);</span>
+                }
+                // Se o oponente estiver agachado, o urso não atinge
+            }
+            
+            // Remove urso inativo
+<span class="nc bnc" id="L914" title="All 2 branches missed.">            if (!currentBear.active) {</span>
+<span class="nc" id="L915">                currentBear = null;</span>
+            }
+        }
+
+        // Atualiza lápis do William
+<span class="pc bpc" id="L920" title="1 of 2 branches missed.">        if (currentLapis != null) {</span>
+<span class="nc" id="L921">            currentLapis.update();</span>
+<span class="nc bnc" id="L922" title="All 4 branches missed.">            if (opponent != null &amp;&amp; currentLapis.isCollidingWith(opponent)) {</span>
+<span class="nc bnc" id="L923" title="All 2 branches missed.">                if (!opponent.isCrouching()) {</span>
+<span class="nc" id="L924">                    double damage = character.getSpecialAttackDamage();</span>
+<span class="nc bnc" id="L925" title="All 2 branches missed.">                    if (opponent.isBlocking()) {</span>
+<span class="nc" id="L926">                        damage *= character.getBlockReduction();</span>
+                    }
+<span class="nc" id="L928">                    opponent.takeDamage((int)damage, true);</span>
+<span class="nc" id="L929">                    opponent.applyKnockback(true); // Sempre da direita</span>
+<span class="nc" id="L930">                    currentLapis.active = false;</span>
+                }
+            }
+<span class="nc bnc" id="L933" title="All 2 branches missed.">            if (!currentLapis.active) {</span>
+<span class="nc" id="L934">                currentLapis = null;</span>
+            }
+        }
+
+        // Atualiza o clone da Giovana
+<span class="pc bpc" id="L939" title="3 of 4 branches missed.">        if (giovanaClone != null &amp;&amp; !giovanaClone.isAlive()) {</span>
+<span class="nc" id="L940">            giovanaClone = null;</span>
+        }
+<span class="fc" id="L942">    }</span>
+
+    // Métodos para mover o jogador
+    public void moveLeft() {
+<span class="pc bpc" id="L946" title="2 of 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="fc" id="L947">        int nextX = x - moveSpeed;</span>
+<span class="pc bpc" id="L948" title="3 of 4 branches missed.">        if (opponent == null || !isCollidingAt(nextX, opponent)) {</span>
+<span class="fc" id="L949">            x = nextX;</span>
+        }
+<span class="fc" id="L951">        facingRight = false;</span>
+<span class="fc" id="L952">    }</span>
+
+    public void moveRight() {
+<span class="pc bpc" id="L955" title="2 of 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="fc" id="L956">        int nextX = x + moveSpeed;</span>
+<span class="pc bpc" id="L957" title="3 of 4 branches missed.">        if (opponent == null || !isCollidingAt(nextX, opponent)) {</span>
+<span class="fc" id="L958">            x = nextX;</span>
+        }
+<span class="fc" id="L960">        facingRight = true;</span>
+<span class="fc" id="L961">    }</span>
+
+    private boolean isCollidingAt(int nextX, Player other) {
+<span class="nc" id="L964">        final int hitbox = 150;</span>
+<span class="nc" id="L965">        int myNextCenterX = nextX + this.width / 2;</span>
+<span class="nc" id="L966">        int opponentCenterX = other.getX() + other.getWidth() / 2;</span>
+        
+<span class="nc" id="L968">        int currentDistance = Math.abs((this.x + this.width / 2) - opponentCenterX);</span>
+<span class="nc" id="L969">        int nextDistance = Math.abs(myNextCenterX - opponentCenterX);</span>
+
+        // A colisão só ocorre se o jogador estiver se movendo EM DIREÇÃO ao oponente
+        // e se a nova posição violar a hitbox.
+<span class="nc bnc" id="L973" title="All 4 branches missed.">        if (nextDistance &lt; currentDistance &amp;&amp; nextDistance &lt; hitbox) {</span>
+<span class="nc" id="L974">            return true;</span>
+        }
+        
+<span class="nc" id="L977">        return false;</span>
+    }
+
+    public void jump() {
+<span class="nc bnc" id="L981" title="All 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="nc bnc" id="L982" title="All 2 branches missed.">        if (!jumping) {</span>
+<span class="nc" id="L983">            vy = jumpStartSpeed;</span>
+<span class="nc" id="L984">            jumping = true;</span>
+<span class="nc" id="L985">            setAnimation(&quot;pulo&quot;);</span>
+        }
+<span class="nc" id="L987">    }</span>
+
+    public void setCrouching(boolean crouching) {
+<span class="pc bpc" id="L990" title="2 of 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="fc" id="L991">        this.crouching = crouching;</span>
+<span class="fc" id="L992">    }</span>
+
+    public boolean isCrouching() {
+<span class="fc" id="L995">        return crouching;</span>
+    }
+
+    public void setBlocking(boolean blocking) {
+<span class="pc bpc" id="L999" title="2 of 4 branches missed.">        if (isKnockedBack || knockedOut) return;</span>
+<span class="fc" id="L1000">        this.blocking = blocking;</span>
+<span class="fc" id="L1001">    }</span>
+
+    public boolean isBlocking() {
+<span class="fc" id="L1004">        return blocking;</span>
+    }
+
+    public void updateAnimationState(boolean isMoving, boolean isCrouching, boolean isBlocking) {
+<span class="pc bpc" id="L1008" title="1 of 2 branches missed.">        if (knockedOut) {</span>
+<span class="nc" id="L1009">            setAnimation(&quot;tonto&quot;);</span>
+<span class="nc" id="L1010">            return;</span>
+        }
+<span class="pc bpc" id="L1012" title="6 of 12 branches missed.">        if (isTakingDamage() || isAttacking() || isAttackingWithProjectile() || isAttackingWithLightning() || isAttackingWithBear() || jumping) {</span>
+<span class="nc" id="L1013">            return; // Higher priority animations are already playing</span>
+        }
+<span class="pc bpc" id="L1015" title="1 of 2 branches missed.">        if (isBlocking) {</span>
+<span class="nc" id="L1016">            setAnimation(&quot;bloqueio&quot;);</span>
+<span class="pc bpc" id="L1017" title="1 of 2 branches missed.">        } else if (isCrouching) {</span>
+<span class="nc" id="L1018">            setAnimation(&quot;agachar&quot;);</span>
+<span class="pc bpc" id="L1019" title="1 of 2 branches missed.">        } else if (isMoving) {</span>
+<span class="nc" id="L1020">            setAnimation(&quot;andando&quot;);</span>
+        } else {
+<span class="fc" id="L1022">            setAnimation(&quot;parado&quot;);</span>
+        }
+<span class="fc" id="L1024">    }</span>
+
+    // Métodos para desenhar o jogador
+    public void draw(Graphics g) {
+        // Desenha a sombra fixa no chão, centralizada horizontalmente em relação ao player
+<span class="nc bnc" id="L1029" title="All 2 branches missed.">        if (shadowImage != null) {</span>
+<span class="nc" id="L1030">            int shadowX = x;</span>
+<span class="nc" id="L1031">            int shadowY = groundY - 400;</span>
+<span class="nc" id="L1032">            g.drawImage(shadowImage, shadowX, shadowY, 400, 400, null);</span>
+        }
+
+<span class="nc" id="L1035">        Graphics2D g2dPlayer = (Graphics2D) g.create();</span>
+<span class="nc bnc" id="L1036" title="All 2 branches missed.">        if (isKnockedBack) {</span>
+<span class="nc" id="L1037">            g2dPlayer.rotate(rotationAngle, x + width / 2, y + height / 2);</span>
+        }
+
+<span class="nc" id="L1040">        Animation anim = animations.getOrDefault(currentAnimation, animations.get(&quot;parado&quot;));</span>
+<span class="nc bnc" id="L1041" title="All 4 branches missed.">        if (anim != null &amp;&amp; anim.spritesheet != null) {</span>
+<span class="nc" id="L1042">            int frameX = currentFrame * anim.frameWidth;</span>
+
+            // Define a área de origem (source) no spritesheet
+<span class="nc" id="L1045">            int sx1 = frameX;</span>
+<span class="nc" id="L1046">            int sy1 = 0;</span>
+<span class="nc" id="L1047">            int sx2 = sx1 + anim.frameWidth;</span>
+<span class="nc" id="L1048">            int sy2 = anim.frameHeight;</span>
+
+            // Define a área de destino (destination) na tela
+<span class="nc" id="L1051">            int dx1 = x;</span>
+<span class="nc" id="L1052">            int dy1 = y;</span>
+<span class="nc" id="L1053">            int dx2 = x + width;</span>
+<span class="nc" id="L1054">            int dy2 = y + height;</span>
+
+            // Se o personagem estiver virado para a direita, inverte o desenho
+<span class="nc bnc" id="L1057" title="All 4 branches missed.">            if (facingRight &amp;&amp; !isKnockedBack) { </span>
+<span class="nc" id="L1058">                dx1 = x + width;</span>
+<span class="nc" id="L1059">                dx2 = x;</span>
+            }
+
+<span class="nc" id="L1062">            g2dPlayer.drawImage(anim.spritesheet, dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2, null);</span>
+        }
+<span class="nc" id="L1064">        g2dPlayer.dispose();</span>
+
+        // Desenha efeitos de sangue
+<span class="nc bnc" id="L1067" title="All 2 branches missed.">        for (BloodEffect effect : bloodEffects) {</span>
+<span class="nc bnc" id="L1068" title="All 2 branches missed.">            if (!effect.finished) {</span>
+<span class="nc" id="L1069">                int drawWidth = (int)(effect.frameWidth * 2.5);</span>
+<span class="nc" id="L1070">                int drawHeight = (int)(effect.frameHeight * 2.5);</span>
+<span class="nc" id="L1071">                int drawX = effect.x - (drawWidth - effect.frameWidth) / 2;</span>
+<span class="nc" id="L1072">                int drawY = effect.y - (drawHeight - effect.frameHeight) / 2 - (int)(this.height * 0.2);</span>
+<span class="nc" id="L1073">                Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L1074">                g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.85f));</span>
+<span class="nc" id="L1075">                g2d.drawImage(effect.spritesheet, drawX, drawY, drawX + drawWidth, drawY + drawHeight,</span>
+                    0, 0, effect.frameWidth, effect.frameHeight, null);
+<span class="nc" id="L1077">                g2d.dispose();</span>
+            }
+<span class="nc" id="L1079">        }</span>
+        
+        // Desenha o projétil do Jean
+<span class="nc bnc" id="L1082" title="All 4 branches missed.">        if (currentProjectile != null &amp;&amp; currentProjectile.active) {</span>
+<span class="nc" id="L1083">            Graphics2D g2d = (Graphics2D) g.create();</span>
+            
+<span class="nc bnc" id="L1085" title="All 2 branches missed.">            if (projectileImage != null) {</span>
+                // Se a imagem original (giz.png) aponta para a esquerda:
+<span class="nc bnc" id="L1087" title="All 2 branches missed.">                if (currentProjectile.facingRight) {</span>
+                    // Espelha a imagem para que a ponta do giz aponte para a direita
+<span class="nc" id="L1089">                    g2d.drawImage(projectileImage, currentProjectile.x + currentProjectile.width, currentProjectile.y, </span>
+                                 -currentProjectile.width, currentProjectile.height, null);
+                } else {
+                    // Desenha normalmente, pois o personagem e o giz já apontam para a esquerda
+<span class="nc" id="L1093">                    g2d.drawImage(projectileImage, currentProjectile.x, currentProjectile.y, </span>
+                                 currentProjectile.width, currentProjectile.height, null);
+                }
+            } else {
+                // Fallback: desenha um retângulo se a imagem não carregar
+<span class="nc" id="L1098">                g2d.setColor(Color.YELLOW);</span>
+<span class="nc" id="L1099">                g2d.fillRect(currentProjectile.x, currentProjectile.y, currentProjectile.width, currentProjectile.height);</span>
+            }
+            
+<span class="nc" id="L1102">            g2d.dispose();</span>
+        }
+        
+        // Desenha o raio da Anna
+<span class="nc bnc" id="L1106" title="All 4 branches missed.">        if (currentLightning != null &amp;&amp; currentLightning.active) {</span>
+<span class="nc" id="L1107">            Graphics2D g2d = (Graphics2D) g.create();</span>
+            
+<span class="nc bnc" id="L1109" title="All 2 branches missed.">            if (lightningImage != null) {</span>
+                // Desenha o raio com efeito de transparência durante a queda
+<span class="nc" id="L1111">                long elapsed = System.currentTimeMillis() - currentLightning.creationTime;</span>
+<span class="nc" id="L1112">                float alpha = 1.0f;</span>
+                
+<span class="nc bnc" id="L1114" title="All 2 branches missed.">                if (elapsed &lt; currentLightning.fallDuration) {</span>
+                    // Durante a queda, o raio fica mais brilhante
+<span class="nc" id="L1116">                    alpha = 0.8f + (0.2f * (float)elapsed / currentLightning.fallDuration);</span>
+<span class="nc bnc" id="L1117" title="All 2 branches missed.">                } else if (elapsed &lt; currentLightning.fallDuration + currentLightning.hitDuration) {</span>
+                    // Durante o impacto, o raio fica muito brilhante
+<span class="nc" id="L1119">                    alpha = 1.0f;</span>
+                }
+                
+<span class="nc" id="L1122">                g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));</span>
+<span class="nc" id="L1123">                g2d.drawImage(lightningImage, currentLightning.x, currentLightning.y, </span>
+                             currentLightning.width, currentLightning.height, null);
+<span class="nc" id="L1125">            } else {</span>
+                // Fallback: desenha um retângulo azul se a imagem não carregar
+<span class="nc" id="L1127">                g2d.setColor(Color.CYAN);</span>
+<span class="nc" id="L1128">                g2d.fillRect(currentLightning.x, currentLightning.y, currentLightning.width, currentLightning.height);</span>
+            }
+            
+<span class="nc" id="L1131">            g2d.dispose();</span>
+        }
+
+        // Desenha o urso do Erik
+<span class="nc bnc" id="L1135" title="All 4 branches missed.">        if (currentBear != null &amp;&amp; currentBear.active) {</span>
+<span class="nc" id="L1136">            Graphics2D g2d = (Graphics2D) g.create();</span>
+            
+<span class="nc bnc" id="L1138" title="All 2 branches missed.">            if (bearImage != null) {</span>
+                // Desenha o urso com efeito de transparência durante a queda
+<span class="nc" id="L1140">                long elapsed = System.currentTimeMillis() - currentBear.creationTime;</span>
+<span class="nc" id="L1141">                float alpha = 1.0f;</span>
+                
+<span class="nc bnc" id="L1143" title="All 2 branches missed.">                if (elapsed &lt; currentBear.fallDuration) {</span>
+                    // Durante a queda, o urso fica mais brilhante
+<span class="nc" id="L1145">                    alpha = 0.8f + (0.2f * (float)elapsed / currentBear.fallDuration);</span>
+<span class="nc bnc" id="L1146" title="All 2 branches missed.">                } else if (elapsed &lt; currentBear.fallDuration + currentBear.hitDuration) {</span>
+                    // Durante o impacto, o urso fica muito brilhante
+<span class="nc" id="L1148">                    alpha = 1.0f;</span>
+                }
+                
+<span class="nc" id="L1151">                g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));</span>
+<span class="nc" id="L1152">                g2d.drawImage(bearImage, currentBear.x, currentBear.y, </span>
+                             currentBear.width, currentBear.height, null);
+<span class="nc" id="L1154">            } else {</span>
+                // Fallback: desenha um retângulo marrom se a imagem não carregar
+<span class="nc" id="L1156">                g2d.setColor(new Color(139, 69, 19)); // Marrom</span>
+<span class="nc" id="L1157">                g2d.fillRect(currentBear.x, currentBear.y, currentBear.width, currentBear.height);</span>
+            }
+            
+<span class="nc" id="L1160">            g2d.dispose();</span>
+        }
+
+        // Desenha a wave do especial do Cesar
+<span class="nc bnc" id="L1164" title="All 6 branches missed.">        if (auraActive &amp;&amp; character.getName().equals(&quot;Cesar&quot;) &amp;&amp; waveAuraImage != null) {</span>
+<span class="nc" id="L1165">            long elapsed = System.currentTimeMillis() - auraStartTime;</span>
+            // Duração total do efeito (pode ajustar se quiser)
+<span class="nc" id="L1167">            int efeitoTotal = auraDuration;</span>
+<span class="nc bnc" id="L1168" title="All 2 branches missed.">            if (elapsed &lt; efeitoTotal) {</span>
+<span class="nc" id="L1169">                float progress = Math.min(1f, elapsed / (float)efeitoTotal);</span>
+                // Tamanho inicial e final da wave
+<span class="nc" id="L1171">                int minSize = 400;</span>
+<span class="nc" id="L1172">                int maxSize = 900;</span>
+<span class="nc" id="L1173">                int size = (int)(minSize + (maxSize - minSize) * progress);</span>
+                // Alpha diminui conforme cresce
+<span class="nc" id="L1175">                float alpha = 1.0f - progress;</span>
+<span class="nc" id="L1176">                Graphics2D g2dAura = (Graphics2D) g.create();</span>
+<span class="nc" id="L1177">                g2dAura.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));</span>
+<span class="nc" id="L1178">                int auraX = x + width/2 - size/2;</span>
+<span class="nc" id="L1179">                int auraY = y + height/2 - size/2;</span>
+<span class="nc" id="L1180">                g2dAura.drawImage(waveAuraImage, auraX, auraY, size, size, null);</span>
+<span class="nc" id="L1181">                g2dAura.dispose();</span>
+<span class="nc" id="L1182">            } else {</span>
+<span class="nc" id="L1183">                auraActive = false; // Garante que não desenhe mais após o tempo</span>
+            }
+        }
+        
+        // Desenha o lápis do William
+<span class="nc bnc" id="L1188" title="All 4 branches missed.">        if (currentLapis != null &amp;&amp; currentLapis.active) {</span>
+<span class="nc" id="L1189">            Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc bnc" id="L1190" title="All 2 branches missed.">            if (lapisImage != null) {</span>
+<span class="nc bnc" id="L1191" title="All 2 branches missed.">                if (currentLapis.facingRight) {</span>
+<span class="nc" id="L1192">                    g2d.drawImage(lapisImage, currentLapis.x, currentLapis.y, currentLapis.width, currentLapis.height, null);</span>
+                } else {
+                    // Espelha a imagem horizontalmente
+<span class="nc" id="L1195">                    g2d.drawImage(lapisImage, currentLapis.x + currentLapis.width, currentLapis.y, -currentLapis.width, currentLapis.height, null);</span>
+                }
+            } else {
+<span class="nc" id="L1198">                g2d.setColor(Color.BLUE);</span>
+<span class="nc" id="L1199">                g2d.fillRect(currentLapis.x, currentLapis.y, currentLapis.width, currentLapis.height);</span>
+            }
+<span class="nc" id="L1201">            g2d.dispose();</span>
+        }
+        
+        // Desenha números de dano flutuantes
+<span class="nc bnc" id="L1205" title="All 2 branches missed.">        for (DamageNumber damageNum : damageNumbers) {</span>
+<span class="nc" id="L1206">            Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L1207">            g2d.setColor(damageNum.color);</span>
+<span class="nc" id="L1208">            g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 24));</span>
+            
+            // Adiciona efeito de sombra
+<span class="nc" id="L1211">            g2d.setColor(Color.BLACK);</span>
+<span class="nc" id="L1212">            g2d.drawString(String.valueOf(damageNum.damage), damageNum.x + 2, damageNum.y + 2);</span>
+            
+            // Desenha o número principal
+<span class="nc" id="L1215">            g2d.setColor(damageNum.color);</span>
+<span class="nc" id="L1216">            g2d.drawString(String.valueOf(damageNum.damage), damageNum.x, damageNum.y);</span>
+            
+<span class="nc" id="L1218">            g2d.dispose();</span>
+<span class="nc" id="L1219">        }</span>
+
+        // Desenha o clone da Giovana
+<span class="nc bnc" id="L1222" title="All 4 branches missed.">        if (giovanaClone != null &amp;&amp; giovanaClone.isAlive()) {</span>
+<span class="nc" id="L1223">            Animation cloneAnim = animations.getOrDefault(&quot;parado&quot;, null);</span>
+<span class="nc bnc" id="L1224" title="All 4 branches missed.">            if (cloneAnim != null &amp;&amp; cloneAnim.spritesheet != null) {</span>
+<span class="nc" id="L1225">                Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L1226">                float alpha = giovanaClone.getAlpha();</span>
+<span class="nc" id="L1227">                g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, alpha));</span>
+<span class="nc" id="L1228">                int dx1 = giovanaClone.x;</span>
+<span class="nc" id="L1229">                int dy1 = giovanaClone.y;</span>
+<span class="nc" id="L1230">                int dx2 = giovanaClone.x + width;</span>
+<span class="nc" id="L1231">                int dy2 = giovanaClone.y + height;</span>
+<span class="nc" id="L1232">                int sx1 = 0;</span>
+<span class="nc" id="L1233">                int sy1 = 0;</span>
+<span class="nc" id="L1234">                int sx2 = cloneAnim.frameWidth;</span>
+<span class="nc" id="L1235">                int sy2 = cloneAnim.frameHeight;</span>
+<span class="nc bnc" id="L1236" title="All 2 branches missed.">                if (giovanaClone.facingRight) {</span>
+<span class="nc" id="L1237">                    g2d.drawImage(cloneAnim.spritesheet, dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2, null);</span>
+                } else {
+<span class="nc" id="L1239">                    g2d.drawImage(cloneAnim.spritesheet, dx1 + width, dy1, dx1, dy2, sx1, sy1, sx2, sy2, null);</span>
+                }
+<span class="nc" id="L1241">                g2d.dispose();</span>
+            }
+        }
+<span class="nc" id="L1244">    }</span>
+
+    // Troca de animação
+    public void setAnimation(String anim) {
+<span class="pc bpc" id="L1248" title="1 of 2 branches missed.">        if (!currentAnimation.equals(anim)) {</span>
+<span class="nc" id="L1249">            currentAnimation = anim;</span>
+<span class="nc" id="L1250">            currentFrame = 0; // Reseta o frame ao mudar de animação</span>
+<span class="nc" id="L1251">            lastFrameTime = System.currentTimeMillis();</span>
+        }
+<span class="fc" id="L1253">    }</span>
+
+    // Getters e setters
+    public Character getCharacter() {
+<span class="fc" id="L1257">        return character;</span>
+    }
+
+    public int getX() {
+<span class="fc" id="L1261">        return x;</span>
+    }
+
+    public void setX(int x) {
+<span class="fc" id="L1265">        this.x = x;</span>
+<span class="fc" id="L1266">    }</span>
+
+    public int getY() {
+<span class="fc" id="L1269">        return y;</span>
+    }
+
+    public void setY(int y) {
+<span class="fc" id="L1273">        this.y = y;</span>
+<span class="fc" id="L1274">    }</span>
+
+    public int getWidth() {
+<span class="fc" id="L1277">        return width;</span>
+    }
+
+    public int getHeight() {
+<span class="fc" id="L1281">        return height;</span>
+    }
+
+    public boolean isFacingRight() {
+<span class="nc" id="L1285">        return facingRight;</span>
+    }
+
+    public void setJumping(boolean jumping) {
+<span class="nc" id="L1289">        this.jumping = jumping;</span>
+<span class="nc" id="L1290">    }</span>
+
+    public void clearProjectile() {
+<span class="nc" id="L1293">        currentProjectile = null;</span>
+<span class="nc" id="L1294">    }</span>
+
+    private void loadBloodSpritesheet() {
+<span class="nc bnc" id="L1297" title="All 2 branches missed.">        if (bloodLoaded) return;</span>
+        try {
+<span class="nc" id="L1299">            bloodSpritesheet = javax.imageio.ImageIO.read(getClass().getResource(&quot;/images/effects/blood.png&quot;));</span>
+<span class="nc" id="L1300">            bloodFrameHeight = bloodSpritesheet.getHeight();</span>
+            // Supondo que cada frame tem a mesma largura do personagem
+<span class="nc" id="L1302">            bloodFrameWidth = bloodFrameHeight; // ou width, se preferir</span>
+<span class="nc" id="L1303">            bloodFrameCount = bloodSpritesheet.getWidth() / bloodFrameWidth;</span>
+<span class="nc" id="L1304">            bloodLoaded = true;</span>
+<span class="nc" id="L1305">        } catch (Exception e) {</span>
+<span class="nc" id="L1306">            bloodLoaded = true;</span>
+<span class="nc" id="L1307">        }</span>
+<span class="nc" id="L1308">    }</span>
+
+    // Sobrescrever takeDamage para adicionar efeito de sangue
+    public void takeDamage(int damageAmount) {
+<span class="nc" id="L1312">        takeDamage(damageAmount, false);</span>
+<span class="nc" id="L1313">    }</span>
+
+    // Sobrescrever takeDamage para adicionar efeito de sangue e números de dano
+    public void takeDamage(int damageAmount, boolean isSpecial) {
+<span class="nc bnc" id="L1317" title="All 4 branches missed.">        if (isTakingDamage() || knockedOut) return; // Previne &quot;stun lock&quot; e impede dano após nocaute</span>
+<span class="nc" id="L1318">        character.takeDamage(damageAmount);</span>
+<span class="nc bnc" id="L1319" title="All 2 branches missed.">        if (character.getHealth() &lt;= 0) {</span>
+<span class="nc" id="L1320">            knockedOut = true;</span>
+<span class="nc" id="L1321">            canBeFinished = true; // Pode ser finalizado</span>
+<span class="nc" id="L1322">            setAnimation(&quot;tonto&quot;);</span>
+<span class="nc" id="L1323">            lastDamageTime = System.currentTimeMillis();</span>
+            
+            // Toca o som do personagem quando nocauteado
+<span class="nc" id="L1326">            String characterName = character.getName().toLowerCase();</span>
+<span class="nc" id="L1327">            AudioManager.getInstance().playSound(characterName);</span>
+<span class="nc" id="L1328">            return;</span>
+        }
+<span class="nc" id="L1330">        setAnimation(&quot;dano&quot;);</span>
+<span class="nc" id="L1331">        lastDamageTime = System.currentTimeMillis();</span>
+<span class="nc" id="L1332">        loadBloodSpritesheet();</span>
+<span class="nc bnc" id="L1333" title="All 4 branches missed.">        if (bloodSpritesheet != null &amp;&amp; bloodFrameCount &gt; 0) {</span>
+<span class="nc" id="L1334">            int bx = x + width/2 - bloodFrameWidth/2;</span>
+<span class="nc" id="L1335">            int by = y + height/2 - bloodFrameHeight/2;</span>
+<span class="nc" id="L1336">            bloodEffects.add(new BloodEffect(bx, by, bloodSpritesheet, bloodFrameCount, bloodFrameWidth, bloodFrameHeight));</span>
+        }
+        
+        // Adiciona número de dano flutuante
+<span class="nc" id="L1340">        int damageX = x + width/2;</span>
+<span class="nc" id="L1341">        int damageY = y + height/2;</span>
+<span class="nc" id="L1342">        damageNumbers.add(new DamageNumber(damageX, damageY, damageAmount, isSpecial));</span>
+<span class="nc" id="L1343">    }</span>
+
+    public void applyKnockback(boolean fromRight) {
+<span class="nc bnc" id="L1346" title="All 4 branches missed.">        if (knockedOut || isKnockedBack) return; // Não pode sofrer novo knockback se já estiver no estado</span>
+<span class="nc" id="L1347">        isKnockedBack = true;</span>
+<span class="nc" id="L1348">        knockbackEndTime = System.currentTimeMillis() + 3000; // Duração de 3 segundos</span>
+<span class="nc" id="L1349">        vy = -40; // Aplica um grande impulso vertical para &quot;voar&quot;</span>
+<span class="nc bnc" id="L1350" title="All 2 branches missed.">        knockbackVx = fromRight ? -20 : 20; // Arremessa na direção oposta ao projétil</span>
+<span class="nc bnc" id="L1351" title="All 2 branches missed.">        rotationSpeed = fromRight ? -0.5 : 0.5; // Define a velocidade de rotação</span>
+<span class="nc" id="L1352">        setAnimation(&quot;dano&quot;);</span>
+<span class="nc" id="L1353">    }</span>
+
+    // Métodos para a barra de cooldown do golpe especial
+    public double getSpecialAttackProgress() {
+<span class="nc" id="L1357">        long currentTime = System.currentTimeMillis();</span>
+<span class="nc" id="L1358">        long timeSinceLastSpecial = currentTime - lastSpecialAttackTime;</span>
+        
+<span class="nc bnc" id="L1360" title="All 2 branches missed.">        if (timeSinceLastSpecial &gt;= specialAttackCooldown) {</span>
+<span class="nc" id="L1361">            return 1.0; // Cooldown completo</span>
+        }
+        
+<span class="nc" id="L1364">        return (double) timeSinceLastSpecial / specialAttackCooldown;</span>
+    }
+
+    public boolean isSpecialAttackReady() {
+<span class="nc bnc" id="L1368" title="All 2 branches missed.">        return getSpecialAttackProgress() &gt;= 1.0;</span>
+    }
+
+    public long getTimeUntilSpecialReady() {
+<span class="nc" id="L1372">        long currentTime = System.currentTimeMillis();</span>
+<span class="nc" id="L1373">        long timeSinceLastSpecial = currentTime - lastSpecialAttackTime;</span>
+        
+<span class="nc bnc" id="L1375" title="All 2 branches missed.">        if (timeSinceLastSpecial &gt;= specialAttackCooldown) {</span>
+<span class="nc" id="L1376">            return 0; // Já está pronto</span>
+        }
+        
+<span class="nc" id="L1379">        return specialAttackCooldown - timeSinceLastSpecial;</span>
+    }
+
+    // Métodos para finalização
+    public boolean canBeFinished() {
+<span class="pc bpc" id="L1384" title="3 of 4 branches missed.">        return canBeFinished &amp;&amp; !isBeingFinished;</span>
+    }
+
+    public void finish(boolean fromRight) {
+<span class="nc bnc" id="L1388" title="All 4 branches missed.">        if (!canBeFinished || isBeingFinished) return;</span>
+        
+<span class="nc" id="L1390">        isBeingFinished = true;</span>
+<span class="nc" id="L1391">        finishStartTime = System.currentTimeMillis();</span>
+<span class="nc" id="L1392">        setAnimation(&quot;dano&quot;);</span>
+        
+        // Aplica knockback final após a animação com velocidade muito alta
+<span class="nc" id="L1395">        Timer finishTimer = new Timer(finishAnimationDuration, e -&gt; {</span>
+<span class="nc" id="L1396">            finalKnockback = true;</span>
+<span class="nc bnc" id="L1397" title="All 2 branches missed.">            finalKnockbackVx = fromRight ? -80 : 80; // Velocidade horizontal muito alta</span>
+<span class="nc" id="L1398">            finalKnockbackVy = -100; // Velocidade vertical muito alta</span>
+<span class="nc" id="L1399">            ((Timer)e.getSource()).stop();</span>
+<span class="nc" id="L1400">        });</span>
+<span class="nc" id="L1401">        finishTimer.setRepeats(false);</span>
+<span class="nc" id="L1402">        finishTimer.start();</span>
+<span class="nc" id="L1403">    }</span>
+
+    public boolean isBeingFinished() {
+<span class="fc" id="L1406">        return isBeingFinished;</span>
+    }
+
+    public boolean isFinalKnockback() {
+<span class="fc" id="L1410">        return finalKnockback;</span>
+    }
+
+    public void resetForNewRound() {
+        // Reseta o personagem para o próximo round
+<span class="nc" id="L1415">        knockedOut = false;</span>
+<span class="nc" id="L1416">        canBeFinished = false;</span>
+<span class="nc" id="L1417">        isBeingFinished = false;</span>
+<span class="nc" id="L1418">        finalKnockback = false;</span>
+<span class="nc" id="L1419">        finalKnockbackVx = 0;</span>
+<span class="nc" id="L1420">        finalKnockbackVy = 0;</span>
+<span class="nc" id="L1421">        isKnockedBack = false;</span>
+<span class="nc" id="L1422">        knockbackVx = 0;</span>
+<span class="nc" id="L1423">        rotationAngle = 0;</span>
+<span class="nc" id="L1424">        rotationSpeed = 0;</span>
+<span class="nc" id="L1425">        vy = 0;</span>
+<span class="nc" id="L1426">        jumping = false;</span>
+<span class="nc" id="L1427">        crouching = false;</span>
+<span class="nc" id="L1428">        blocking = false;</span>
+<span class="nc" id="L1429">        setAnimation(&quot;parado&quot;);</span>
+        
+        // Restaura a vida
+<span class="nc" id="L1432">        character.restoreHealth();</span>
+<span class="nc" id="L1433">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

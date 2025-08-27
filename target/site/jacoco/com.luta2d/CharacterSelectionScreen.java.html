@@ -1,0 +1,604 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CharacterSelectionScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">CharacterSelectionScreen.java</span></div><h1>CharacterSelectionScreen.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.io.File;
+import java.io.IOException;
+
+public class CharacterSelectionScreen extends JPanel implements ActionListener {
+    private final GameWindow window;
+    private final Image background;
+<span class="nc" id="L14">    private final List&lt;CharacterButton&gt; characterButtons = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L15">    private int currentPlayer = 1;</span>
+<span class="nc" id="L16">    private Character selected1 = null;</span>
+<span class="nc" id="L17">    private Character selected2 = null;</span>
+<span class="nc" id="L18">    private boolean hoverPlayed = false;</span>
+    private JLabel previewLabel;
+    private JLabel previewNameLabel;
+    private JLabel playerIndicator;
+    private Timer countdownTimer;
+<span class="nc" id="L23">    private int countdown = 3;</span>
+    private JLabel countdownLabel;
+    private JLabel sidePhotoLabel;
+    private JLayeredPane layeredPane;
+    private JLabel bigPhotoLabel1;
+    private JLabel bigPhotoLabel2;
+    private ImageIcon currentBigPhoto1;
+    private ImageIcon currentBigPhoto2;
+    private Timer fadeTimer1;
+    private Timer fadeTimer2;
+<span class="nc" id="L33">    private float fadeAlpha1 = 1.0f;</span>
+<span class="nc" id="L34">    private float fadeAlpha2 = 1.0f;</span>
+    private ImageIcon nextBigPhoto1;
+    private ImageIcon nextBigPhoto2;
+    
+    // Cores para seleção: preta (padrão), azul (Player 1), vermelha (Player 2)
+    
+    // Variáveis para transição suave
+    private Image versusBackground;
+<span class="nc" id="L42">    private boolean transitionStarted = false;</span>
+<span class="nc" id="L43">    private float transitionAlpha = 0.0f;</span>
+    private Timer transitionTimer;
+    private Timer arenaTimer;
+<span class="nc" id="L46">    private boolean iconsHidden = false;</span>
+
+<span class="nc" id="L48">    public CharacterSelectionScreen(GameWindow window) {</span>
+<span class="nc" id="L49">        this.window = window;</span>
+<span class="nc" id="L50">        setLayout(new BorderLayout());</span>
+<span class="nc" id="L51">        setFocusable(true);</span>
+<span class="nc" id="L52">        setBackground(Color.BLACK); // Define fundo preto</span>
+
+        // Inicia a música de seleção de personagens
+<span class="nc" id="L55">        AudioManager.getInstance().playMusic(&quot;characters&quot;, true);</span>
+
+        // Carrega a imagem de fundo smoke.gif
+<span class="nc" id="L58">        java.net.URL bgUrl = getClass().getResource(&quot;/images/smoke.gif&quot;);</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (bgUrl != null) {</span>
+<span class="nc" id="L60">            background = new ImageIcon(bgUrl).getImage();</span>
+        } else {
+<span class="nc" id="L62">            System.err.println(&quot;Imagem de fundo não encontrada: /images/smoke.gif&quot;);</span>
+<span class="nc" id="L63">            background = null;</span>
+        }
+
+        // Carrega a imagem versus.png para a transição
+<span class="nc" id="L67">        java.net.URL versusUrl = getClass().getResource(&quot;/images/versus.png&quot;);</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (versusUrl != null) {</span>
+<span class="nc" id="L69">            versusBackground = new ImageIcon(versusUrl).getImage();</span>
+        } else {
+<span class="nc" id="L71">            versusBackground = null;</span>
+        }
+
+        // Criar o JLayeredPane
+<span class="nc" id="L75">        layeredPane = new JLayeredPane();</span>
+<span class="nc" id="L76">        layeredPane.setLayout(null);</span>
+<span class="nc" id="L77">        add(layeredPane, BorderLayout.CENTER);</span>
+
+        // Create countdown label
+<span class="nc" id="L80">        countdownLabel = new JLabel(&quot;&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L81">        countdownLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 72));</span>
+<span class="nc" id="L82">        countdownLabel.setForeground(Color.WHITE);</span>
+<span class="nc" id="L83">        countdownLabel.setBounds(0, 50, getWidth(), 100);</span>
+<span class="nc" id="L84">        countdownLabel.setVisible(false);</span>
+<span class="nc" id="L85">        layeredPane.add(countdownLabel, JLayeredPane.MODAL_LAYER);</span>
+
+        // Create preview panel for Player 1 (left side)
+<span class="nc" id="L88">        JPanel previewPanel1 = new JPanel();</span>
+<span class="nc" id="L89">        previewPanel1.setLayout(null);</span>
+<span class="nc" id="L90">        previewPanel1.setOpaque(false);</span>
+<span class="nc" id="L91">        previewPanel1.setBounds(0, 0, getWidth()/2, getHeight());</span>
+<span class="nc" id="L92">        layeredPane.add(previewPanel1, JLayeredPane.PALETTE_LAYER);</span>
+
+<span class="nc" id="L94">        previewLabel = new JLabel();</span>
+<span class="nc" id="L95">        previewLabel.setBounds(0, 0, 640, 720);</span>
+<span class="nc" id="L96">        previewPanel1.add(previewLabel);</span>
+
+        // Create preview panel for Player 2 (right side)
+<span class="nc" id="L99">        JPanel previewPanel2 = new JPanel();</span>
+<span class="nc" id="L100">        previewPanel2.setLayout(null);</span>
+<span class="nc" id="L101">        previewPanel2.setOpaque(false);</span>
+<span class="nc" id="L102">        previewPanel2.setBounds(getWidth()/2, 0, getWidth()/2, getHeight());</span>
+<span class="nc" id="L103">        layeredPane.add(previewPanel2, JLayeredPane.PALETTE_LAYER);</span>
+
+<span class="nc" id="L105">        sidePhotoLabel = new JLabel();</span>
+<span class="nc" id="L106">        sidePhotoLabel.setBounds(0, 0, 640, 720);</span>
+<span class="nc" id="L107">        previewPanel2.add(sidePhotoLabel);</span>
+
+        // Create player indicator with background
+<span class="nc" id="L110">        JPanel indicatorPanel = new JPanel();</span>
+<span class="nc" id="L111">        indicatorPanel.setOpaque(false);</span>
+<span class="nc" id="L112">        indicatorPanel.setBounds(0, 0, getWidth(), 60);</span>
+<span class="nc" id="L113">        layeredPane.add(indicatorPanel, JLayeredPane.PALETTE_LAYER);</span>
+
+<span class="nc" id="L115">        playerIndicator = new JLabel(&quot;Player 1 - Select Your Character&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L116">        playerIndicator.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 32));</span>
+<span class="nc" id="L117">        playerIndicator.setForeground(Color.WHITE);</span>
+<span class="nc" id="L118">        indicatorPanel.add(playerIndicator);</span>
+
+<span class="nc" id="L120">        String[] names = {</span>
+                &quot;Anna&quot;, &quot;William&quot;, &quot;Cesar&quot;, &quot;Jean&quot;,
+                &quot;Giovana&quot;, &quot;Erik&quot;
+        };
+
+        // Configuração para grade 6x1 (uma linha horizontal com 6 personagens)
+<span class="nc" id="L126">        int cols = 6; // Alterado de 9 para 6</span>
+<span class="nc" id="L127">        int rows = 1;</span>
+<span class="nc" id="L128">        int width = 150;</span>
+<span class="nc" id="L129">        int height = 150;</span>
+<span class="nc" id="L130">        int gap = 20; // Adiciona um pequeno espaço entre os ícones</span>
+
+<span class="nc" id="L132">        int panelWidth = 1280;</span>
+<span class="nc" id="L133">        int panelHeight = 720;</span>
+
+<span class="nc bnc" id="L135" title="All 4 branches missed.">        if (window.getWidth() &gt; 0 &amp;&amp; window.getHeight() &gt; 0) {</span>
+<span class="nc" id="L136">            panelWidth = window.getWidth();</span>
+<span class="nc" id="L137">            panelHeight = window.getHeight();</span>
+        }
+
+        // Calcula o tamanho total e centraliza horizontalmente
+<span class="nc" id="L141">        int totalWidth = cols * width + (cols - 1) * gap;</span>
+<span class="nc" id="L142">        int startX = (panelWidth - totalWidth) / 2;</span>
+<span class="nc" id="L143">        int startY = panelHeight - height - 80; // Posiciona na parte inferior da tela com mais espaço</span>
+
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        for (int i = 0; i &lt; names.length; i++) {</span>
+<span class="nc" id="L146">            int col = i % cols;</span>
+<span class="nc" id="L147">            int x = startX + col * (width + gap);</span>
+<span class="nc" id="L148">            int y = startY;</span>
+
+<span class="nc" id="L150">            CharacterButton btn = new CharacterButton(names[i], x, y, width, height, i);</span>
+<span class="nc" id="L151">            characterButtons.add(btn);</span>
+
+<span class="nc" id="L153">            btn.addMouseListener(new MouseAdapter() {</span>
+                @Override
+                public void mouseClicked(MouseEvent e) {
+<span class="nc bnc" id="L156" title="All 4 branches missed.">                    if (currentPlayer == 1 &amp;&amp; selected1 == null) {</span>
+<span class="nc" id="L157">                        selected1 = new Character(btn.name, 1);</span>
+<span class="nc" id="L158">                        btn.setSelected(true, Color.BLUE); // Azul para Player 1</span>
+<span class="nc" id="L159">                        currentPlayer = 2;</span>
+<span class="nc" id="L160">                        playerIndicator.setText(&quot;Player 2 - Select Your Character&quot;);</span>
+<span class="nc bnc" id="L161" title="All 6 branches missed.">                    } else if (currentPlayer == 2 &amp;&amp; selected2 == null &amp;&amp; !btn.name.equals(selected1.getName())) {</span>
+<span class="nc" id="L162">                        selected2 = new Character(btn.name, 2);</span>
+<span class="nc" id="L163">                        btn.setSelected(true, Color.RED); // Vermelho para Player 2</span>
+<span class="nc" id="L164">                        startCountdown();</span>
+                    }
+<span class="nc" id="L166">                }</span>
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+<span class="nc bnc" id="L170" title="All 4 branches missed.">                    if (currentPlayer == 1 &amp;&amp; selected1 == null) {</span>
+<span class="nc" id="L171">                        startFadePhoto(1, btn.name);</span>
+<span class="nc bnc" id="L172" title="All 8 branches missed.">                    } else if (currentPlayer == 2 &amp;&amp; selected2 == null &amp;&amp; !btn.name.equals(selected1 != null ? selected1.getName() : &quot;&quot;)) {</span>
+<span class="nc" id="L173">                        startFadePhoto(2, btn.name);</span>
+                    }
+                    // Toca o som do personagem ao passar o mouse
+<span class="nc" id="L176">                    AudioManager.getInstance().playSound(btn.name.toLowerCase());</span>
+<span class="nc" id="L177">                }</span>
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+<span class="nc bnc" id="L181" title="All 4 branches missed.">                    if (currentPlayer == 1 &amp;&amp; selected1 == null) {</span>
+<span class="nc" id="L182">                        startFadePhoto(1, null);</span>
+<span class="nc bnc" id="L183" title="All 8 branches missed.">                    } else if (currentPlayer == 2 &amp;&amp; selected2 == null &amp;&amp; !btn.name.equals(selected1 != null ? selected1.getName() : &quot;&quot;)) {</span>
+<span class="nc" id="L184">                        startFadePhoto(2, null);</span>
+                    }
+                    // Para o som do personagem ao sair do hover
+<span class="nc" id="L187">                    AudioManager.getInstance().stopCurrentSound();</span>
+<span class="nc" id="L188">                }</span>
+            });
+
+<span class="nc" id="L191">            layeredPane.add(btn, JLayeredPane.PALETTE_LAYER);</span>
+        }
+
+        // Adicionar as fotos grandes dos personagens
+<span class="nc" id="L195">        bigPhotoLabel1 = new JLabel() {</span>
+            @Override
+            protected void paintComponent(Graphics g) {
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                if (currentBigPhoto1 != null) {</span>
+<span class="nc" id="L199">                    Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L200">                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, fadeAlpha1));</span>
+                    // Player 1: esquerda, espelha horizontalmente
+<span class="nc" id="L202">                    int w = getWidth();</span>
+<span class="nc" id="L203">                    int h = getHeight();</span>
+<span class="nc" id="L204">                    g2d.drawImage(currentBigPhoto1.getImage(), w, h - w, -w, w, null);</span>
+<span class="nc" id="L205">                    g2d.dispose();</span>
+                }
+<span class="nc bnc" id="L207" title="All 4 branches missed.">                if (nextBigPhoto1 != null &amp;&amp; fadeAlpha1 &lt; 1.0f) {</span>
+<span class="nc" id="L208">                    Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L209">                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1.0f - fadeAlpha1));</span>
+<span class="nc" id="L210">                    int w = getWidth();</span>
+<span class="nc" id="L211">                    int h = getHeight();</span>
+<span class="nc" id="L212">                    g2d.drawImage(nextBigPhoto1.getImage(), w, h - w, -w, w, null);</span>
+<span class="nc" id="L213">                    g2d.dispose();</span>
+                }
+<span class="nc" id="L215">            }</span>
+        };
+<span class="nc" id="L217">        bigPhotoLabel2 = new JLabel() {</span>
+            @Override
+            protected void paintComponent(Graphics g) {
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                if (currentBigPhoto2 != null) {</span>
+<span class="nc" id="L221">                    Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L222">                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, fadeAlpha2));</span>
+                    // Player 2: direita, NÃO espelha, desenha normalmente
+<span class="nc" id="L224">                    int w = getWidth();</span>
+<span class="nc" id="L225">                    int h = getHeight();</span>
+<span class="nc" id="L226">                    g2d.drawImage(currentBigPhoto2.getImage(), 0, h - w, w, w, null);</span>
+<span class="nc" id="L227">                    g2d.dispose();</span>
+                }
+<span class="nc bnc" id="L229" title="All 4 branches missed.">                if (nextBigPhoto2 != null &amp;&amp; fadeAlpha2 &lt; 1.0f) {</span>
+<span class="nc" id="L230">                    Graphics2D g2d = (Graphics2D) g.create();</span>
+<span class="nc" id="L231">                    g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1.0f - fadeAlpha2));</span>
+<span class="nc" id="L232">                    int w = getWidth();</span>
+<span class="nc" id="L233">                    int h = getHeight();</span>
+<span class="nc" id="L234">                    g2d.drawImage(nextBigPhoto2.getImage(), 0, h - w, w, w, null);</span>
+<span class="nc" id="L235">                    g2d.dispose();</span>
+                }
+<span class="nc" id="L237">            }</span>
+        };
+        // Adiciona as labels ao layeredPane, entre o fundo e os ícones
+<span class="nc" id="L240">        bigPhotoLabel1.setOpaque(false);</span>
+<span class="nc" id="L241">        bigPhotoLabel2.setOpaque(false);</span>
+        // Adiciona na camada abaixo dos ícones, acima do fundo
+<span class="nc" id="L243">        layeredPane.add(bigPhotoLabel1, JLayeredPane.DEFAULT_LAYER);</span>
+<span class="nc" id="L244">        layeredPane.add(bigPhotoLabel2, JLayeredPane.DEFAULT_LAYER);</span>
+
+        // Ajusta o tamanho das labels ao redimensionar a tela
+<span class="nc" id="L247">        layeredPane.addComponentListener(new ComponentAdapter() {</span>
+            @Override
+            public void componentResized(ComponentEvent e) {
+<span class="nc" id="L250">                int w = layeredPane.getWidth();</span>
+<span class="nc" id="L251">                int h = layeredPane.getHeight();</span>
+<span class="nc" id="L252">                bigPhotoLabel1.setBounds(0, 0, w / 2, h);</span>
+<span class="nc" id="L253">                bigPhotoLabel2.setBounds(w / 2, 0, w / 2, h);</span>
+<span class="nc" id="L254">            }</span>
+        });
+        // Inicializa o tamanho correto
+<span class="nc" id="L257">        int w = layeredPane.getWidth();</span>
+<span class="nc" id="L258">        int h = layeredPane.getHeight();</span>
+<span class="nc" id="L259">        bigPhotoLabel1.setBounds(0, 0, w / 2, h);</span>
+<span class="nc" id="L260">        bigPhotoLabel2.setBounds(w / 2, 0, w / 2, h);</span>
+
+<span class="nc" id="L262">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L266">                    window.setFullScreen(false);</span>
+                }
+<span class="nc" id="L268">            }</span>
+        });
+<span class="nc" id="L270">    }</span>
+
+    @Override
+    public void removeNotify() {
+<span class="nc" id="L274">        super.removeNotify();</span>
+<span class="nc" id="L275">    }</span>
+
+    @Override
+    public void doLayout() {
+<span class="nc" id="L279">        super.doLayout();</span>
+<span class="nc" id="L280">        repositionCharacterButtons();</span>
+<span class="nc" id="L281">    }</span>
+
+    private void repositionCharacterButtons() {
+<span class="nc" id="L284">        int cols = 6;</span>
+<span class="nc" id="L285">        int width = 150;</span>
+<span class="nc" id="L286">        int height = 150;</span>
+<span class="nc" id="L287">        int gap = 20;</span>
+        
+<span class="nc" id="L289">        int panelWidth = getWidth();</span>
+<span class="nc" id="L290">        int panelHeight = getHeight();</span>
+        
+        // Calcula o tamanho total e centraliza horizontalmente
+<span class="nc" id="L293">        int totalWidth = cols * width + (cols - 1) * gap;</span>
+<span class="nc" id="L294">        int startX = (panelWidth - totalWidth) / 2;</span>
+<span class="nc" id="L295">        int startY = panelHeight - height - 80;</span>
+        
+<span class="nc bnc" id="L297" title="All 2 branches missed.">        for (int i = 0; i &lt; characterButtons.size(); i++) {</span>
+<span class="nc" id="L298">            int col = i % cols;</span>
+<span class="nc" id="L299">            int x = startX + col * (width + gap);</span>
+<span class="nc" id="L300">            int y = startY;</span>
+<span class="nc" id="L301">            characterButtons.get(i).setBounds(x, y, width, height);</span>
+        }
+<span class="nc" id="L303">    }</span>
+
+    private void showSelectionMessage(String message) {
+<span class="nc" id="L306">        JOptionPane.showMessageDialog(this, message, &quot;Character Selected&quot;, JOptionPane.INFORMATION_MESSAGE);</span>
+<span class="nc" id="L307">    }</span>
+
+    private void showConfirmationDialog() {
+<span class="nc" id="L310">        int choice = JOptionPane.showConfirmDialog(</span>
+            this,
+<span class="nc" id="L312">            &quot;Ready to fight?\n&quot; + selected1.getName() + &quot; vs &quot; + selected2.getName(),</span>
+            &quot;Start Fight&quot;,
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE
+        );
+        
+<span class="nc bnc" id="L318" title="All 2 branches missed.">        if (choice == JOptionPane.YES_OPTION) {</span>
+<span class="nc" id="L319">            startFight();</span>
+        } else {
+            // Reset selections
+<span class="nc" id="L322">            selected1 = null;</span>
+<span class="nc" id="L323">            selected2 = null;</span>
+<span class="nc" id="L324">            currentPlayer = 1;</span>
+<span class="nc" id="L325">            playerIndicator.setText(&quot;Player 1 - Select Your Character&quot;);</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">            for (CharacterButton btn : characterButtons) {</span>
+<span class="nc" id="L327">                btn.setSelected(false, Color.BLACK); // Volta para borda preta</span>
+<span class="nc" id="L328">            }</span>
+        }
+<span class="nc" id="L330">    }</span>
+
+    private void startCountdown() {
+<span class="nc bnc" id="L333" title="All 2 branches missed.">        if (transitionStarted) return; // Evita múltiplas chamadas</span>
+<span class="nc" id="L334">        transitionStarted = true;</span>
+        
+        // Esconde os ícones suavemente
+<span class="nc" id="L337">        hideIconsSmoothly();</span>
+        
+        // Inicia a transição do fundo
+<span class="nc" id="L340">        startBackgroundTransition();</span>
+        
+        // Timer para ir para a tela de seleção da arena após 5 segundos
+<span class="nc" id="L343">        arenaTimer = new Timer(5000, e -&gt; {</span>
+<span class="nc" id="L344">            arenaTimer.stop();</span>
+<span class="nc" id="L345">            startFight();</span>
+<span class="nc" id="L346">        });</span>
+<span class="nc" id="L347">        arenaTimer.start();</span>
+<span class="nc" id="L348">    }</span>
+
+    private void startFight() {
+<span class="nc" id="L351">        window.switchTo(new ArenaSelectionScreen(window, selected1, selected2));</span>
+<span class="nc" id="L352">    }</span>
+
+    @Override
+    protected void paintComponent(Graphics g) {
+<span class="nc" id="L356">        super.paintComponent(g);</span>
+<span class="nc" id="L357">        Graphics2D g2d = (Graphics2D) g;</span>
+<span class="nc" id="L358">        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);</span>
+<span class="nc" id="L359">        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);</span>
+        
+        // Desenha o fundo smoke.gif
+<span class="nc bnc" id="L362" title="All 2 branches missed.">        if (background != null) {</span>
+<span class="nc" id="L363">            g2d.drawImage(background, 0, 0, getWidth(), getHeight(), this);</span>
+        } else {
+            // Fallback para fundo preto se a imagem não carregar
+<span class="nc" id="L366">            g2d.setColor(Color.BLACK);</span>
+<span class="nc" id="L367">            g2d.fillRect(0, 0, getWidth(), getHeight());</span>
+        }
+        
+        // Se a transição começou, desenha o fundo versus.png com transparência
+<span class="nc bnc" id="L371" title="All 4 branches missed.">        if (transitionStarted &amp;&amp; versusBackground != null) {</span>
+<span class="nc" id="L372">            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, transitionAlpha));</span>
+<span class="nc" id="L373">            g2d.drawImage(versusBackground, 0, 0, getWidth(), getHeight(), this);</span>
+        }
+<span class="nc" id="L375">    }</span>
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // Implementação do ActionListener se necessário
+<span class="nc" id="L380">    }</span>
+
+    private static class CharacterButton extends JLabel {
+        private final String name;
+<span class="nc" id="L384">        private boolean isSelected = false;</span>
+<span class="nc" id="L385">        private Color borderColor = Color.BLACK; // Borda preta por padrão</span>
+        private final int index;
+        private ImageIcon characterIcon;
+<span class="nc" id="L388">        private static ImageIcon frameIcon = null; // Imagem de fundo compartilhada</span>
+
+<span class="nc" id="L390">        public CharacterButton(String name, int x, int y, int width, int height, int index) {</span>
+<span class="nc" id="L391">            this.name = name;</span>
+<span class="nc" id="L392">            this.index = index;</span>
+<span class="nc" id="L393">            setBounds(x, y, width, height);</span>
+<span class="nc" id="L394">            setOpaque(false);</span>
+<span class="nc" id="L395">            setBorder(BorderFactory.createLineBorder(borderColor, 2));</span>
+            
+            // Carrega a imagem de fundo (frame.png) apenas uma vez
+<span class="nc bnc" id="L398" title="All 2 branches missed.">            if (frameIcon == null) {</span>
+<span class="nc" id="L399">                loadFrameImage(width, height);</span>
+            }
+            
+            // Carrega a imagem do personagem
+<span class="nc" id="L403">            loadCharacterImage(width, height);</span>
+<span class="nc" id="L404">        }</span>
+
+        private void loadCharacterImage(int width, int height) {
+            try {
+<span class="nc" id="L408">                String imagePath = &quot;/images/characters/&quot; + name.toLowerCase() + &quot;.png&quot;;</span>
+<span class="nc" id="L409">                java.net.URL charUrl = getClass().getResource(imagePath);</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                if (charUrl != null) {</span>
+<span class="nc" id="L411">                    characterIcon = new ImageIcon(charUrl);</span>
+<span class="nc" id="L412">                    Image scaledImage = characterIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);</span>
+<span class="nc" id="L413">                    characterIcon = new ImageIcon(scaledImage);</span>
+<span class="nc" id="L414">                    setIcon(characterIcon);</span>
+<span class="nc" id="L415">                } else {</span>
+<span class="nc" id="L416">                    System.out.println(&quot;Erro ao carregar imagem: &quot; + imagePath);</span>
+                }
+<span class="nc" id="L418">            } catch (Exception e) {</span>
+<span class="nc" id="L419">                System.out.println(&quot;Erro ao carregar imagem do personagem &quot; + name + &quot;: &quot; + e.getMessage());</span>
+<span class="nc" id="L420">                e.printStackTrace();</span>
+<span class="nc" id="L421">            }</span>
+<span class="nc" id="L422">        }</span>
+
+        private void loadFrameImage(int width, int height) {
+            try {
+<span class="nc" id="L426">                String framePath = &quot;/images/frame.png&quot;;</span>
+<span class="nc" id="L427">                java.net.URL frameUrl = getClass().getResource(framePath);</span>
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                if (frameUrl != null) {</span>
+<span class="nc" id="L429">                    ImageIcon originalFrame = new ImageIcon(frameUrl);</span>
+<span class="nc" id="L430">                    Image scaledFrame = originalFrame.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);</span>
+<span class="nc" id="L431">                    frameIcon = new ImageIcon(scaledFrame);</span>
+<span class="nc" id="L432">                    System.out.println(&quot;Frame carregado com sucesso: &quot; + framePath + &quot; (&quot; + width + &quot;x&quot; + height + &quot;)&quot;);</span>
+<span class="nc" id="L433">                } else {</span>
+<span class="nc" id="L434">                    System.out.println(&quot;Erro ao carregar frame: &quot; + framePath);</span>
+                }
+<span class="nc" id="L436">            } catch (Exception e) {</span>
+<span class="nc" id="L437">                System.out.println(&quot;Erro ao carregar frame: &quot; + e.getMessage());</span>
+<span class="nc" id="L438">                e.printStackTrace();</span>
+<span class="nc" id="L439">            }</span>
+<span class="nc" id="L440">        }</span>
+
+        public void setSelected(boolean selected, Color color) {
+<span class="nc" id="L443">            isSelected = selected;</span>
+<span class="nc bnc" id="L444" title="All 2 branches missed.">            if (selected) {</span>
+<span class="nc" id="L445">                borderColor = color; // Azul para Player 1, Vermelho para Player 2</span>
+            } else {
+<span class="nc" id="L447">                borderColor = Color.BLACK; // Volta para borda preta</span>
+            }
+<span class="nc" id="L449">            repaint();</span>
+<span class="nc" id="L450">        }</span>
+
+        @Override
+        protected void paintComponent(Graphics g) {
+<span class="nc" id="L454">            super.paintComponent(g);</span>
+<span class="nc" id="L455">            Graphics2D g2d = (Graphics2D) g;</span>
+<span class="nc" id="L456">            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);</span>
+<span class="nc" id="L457">            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);</span>
+
+            // 1. Desenha o frame como fundo (mais atrás)
+<span class="nc bnc" id="L460" title="All 4 branches missed.">            if (frameIcon != null &amp;&amp; frameIcon.getImage() != null) {</span>
+<span class="nc" id="L461">                g2d.drawImage(frameIcon.getImage(), 0, 0, getWidth(), getHeight(), this);</span>
+            }
+
+            // 2. Desenha a imagem do personagem por cima do frame
+<span class="nc bnc" id="L465" title="All 4 branches missed.">            if (characterIcon != null &amp;&amp; characterIcon.getImage() != null) {</span>
+                // Desenha o personagem centralizado no frame
+<span class="nc" id="L467">                int charWidth = getWidth();</span>
+<span class="nc" id="L468">                int charHeight = getHeight();</span>
+<span class="nc" id="L469">                g2d.drawImage(characterIcon.getImage(), 0, 0, charWidth, charHeight, this);</span>
+<span class="nc" id="L470">            } else {</span>
+                // Se não houver imagem do personagem, desenha um retângulo com o nome
+<span class="nc" id="L472">                g2d.setColor(new Color(128, 128, 128, 150));</span>
+<span class="nc" id="L473">                g2d.fillRect(0, 0, getWidth(), getHeight());</span>
+<span class="nc" id="L474">                g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L475">                g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 14));</span>
+<span class="nc" id="L476">                String text = name;</span>
+<span class="nc" id="L477">                FontMetrics fm = g2d.getFontMetrics();</span>
+<span class="nc" id="L478">                int textX = (getWidth() - fm.stringWidth(text)) / 2;</span>
+<span class="nc" id="L479">                int textY = (getHeight() + fm.getAscent()) / 2;</span>
+<span class="nc" id="L480">                g2d.drawString(text, textX, textY);</span>
+            }
+
+            // 3. Desenha a borda por último (mais alta na pilha)
+<span class="nc" id="L484">            g2d.setColor(borderColor);</span>
+<span class="nc bnc" id="L485" title="All 2 branches missed.">            g2d.setStroke(new BasicStroke(isSelected ? 6 : 3)); // Borda mais grossa quando selecionado</span>
+<span class="nc" id="L486">            g2d.drawRect(0, 0, getWidth() - 1, getHeight() - 1);</span>
+<span class="nc" id="L487">        }</span>
+    }
+
+    // Métodos auxiliares para fade e troca de foto
+    private void startFadePhoto(int player, String charName) {
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        if (player == 1) {</span>
+<span class="nc bnc" id="L493" title="All 2 branches missed.">            ImageIcon newPhoto = (charName != null) ? loadBigPhoto(charName) : null;</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">            if (newPhoto == currentBigPhoto1) return;</span>
+<span class="nc" id="L495">            nextBigPhoto1 = newPhoto;</span>
+<span class="nc bnc" id="L496" title="All 4 branches missed.">            if (fadeTimer1 != null &amp;&amp; fadeTimer1.isRunning()) fadeTimer1.stop();</span>
+<span class="nc" id="L497">            fadeAlpha1 = 1.0f;</span>
+<span class="nc" id="L498">            fadeTimer1 = new Timer(15, new ActionListener() {</span>
+                public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L500">                    fadeAlpha1 -= 0.07f;</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">                    if (fadeAlpha1 &lt;= 0f) {</span>
+<span class="nc" id="L502">                        fadeAlpha1 = 1.0f;</span>
+<span class="nc" id="L503">                        currentBigPhoto1 = nextBigPhoto1;</span>
+<span class="nc" id="L504">                        nextBigPhoto1 = null;</span>
+<span class="nc" id="L505">                        fadeTimer1.stop();</span>
+                    }
+<span class="nc" id="L507">                    bigPhotoLabel1.repaint();</span>
+<span class="nc" id="L508">                }</span>
+            });
+<span class="nc" id="L510">            fadeTimer1.start();</span>
+<span class="nc" id="L511">        } else {</span>
+<span class="nc bnc" id="L512" title="All 2 branches missed.">            ImageIcon newPhoto = (charName != null) ? loadBigPhoto(charName) : null;</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            if (newPhoto == currentBigPhoto2) return;</span>
+<span class="nc" id="L514">            nextBigPhoto2 = newPhoto;</span>
+<span class="nc bnc" id="L515" title="All 4 branches missed.">            if (fadeTimer2 != null &amp;&amp; fadeTimer2.isRunning()) fadeTimer2.stop();</span>
+<span class="nc" id="L516">            fadeAlpha2 = 1.0f;</span>
+<span class="nc" id="L517">            fadeTimer2 = new Timer(15, new ActionListener() {</span>
+                public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L519">                    fadeAlpha2 -= 0.07f;</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">                    if (fadeAlpha2 &lt;= 0f) {</span>
+<span class="nc" id="L521">                        fadeAlpha2 = 1.0f;</span>
+<span class="nc" id="L522">                        currentBigPhoto2 = nextBigPhoto2;</span>
+<span class="nc" id="L523">                        nextBigPhoto2 = null;</span>
+<span class="nc" id="L524">                        fadeTimer2.stop();</span>
+                    }
+<span class="nc" id="L526">                    bigPhotoLabel2.repaint();</span>
+<span class="nc" id="L527">                }</span>
+            });
+<span class="nc" id="L529">            fadeTimer2.start();</span>
+        }
+<span class="nc" id="L531">    }</span>
+
+    private void setBigPhoto(int player, String charName) {
+<span class="nc bnc" id="L534" title="All 2 branches missed.">        if (player == 1) {</span>
+<span class="nc" id="L535">            currentBigPhoto1 = loadBigPhoto(charName);</span>
+<span class="nc" id="L536">            nextBigPhoto1 = null;</span>
+<span class="nc" id="L537">            fadeAlpha1 = 1.0f;</span>
+<span class="nc" id="L538">            bigPhotoLabel1.repaint();</span>
+        } else {
+<span class="nc" id="L540">            currentBigPhoto2 = loadBigPhoto(charName);</span>
+<span class="nc" id="L541">            nextBigPhoto2 = null;</span>
+<span class="nc" id="L542">            fadeAlpha2 = 1.0f;</span>
+<span class="nc" id="L543">            bigPhotoLabel2.repaint();</span>
+        }
+<span class="nc" id="L545">    }</span>
+
+    private ImageIcon loadBigPhoto(String charName) {
+        try {
+            // As imagens devem estar em /images/characters/&lt;nome&gt;/foto.png no classpath
+<span class="nc" id="L550">            java.net.URL url = getClass().getResource(&quot;/images/characters/&quot; + charName.toLowerCase() + &quot;/foto.png&quot;);</span>
+<span class="nc bnc" id="L551" title="All 2 branches missed.">            if (url == null) return null;</span>
+<span class="nc" id="L552">            return new ImageIcon(url);</span>
+<span class="nc" id="L553">        } catch (Exception e) {</span>
+<span class="nc" id="L554">            return null;</span>
+        }
+    }
+
+    private void hideIconsSmoothly() {
+        // Timer para esconder os ícones gradualmente
+<span class="nc" id="L560">        Timer hideTimer = new Timer(50, new ActionListener() {</span>
+<span class="nc" id="L561">            private float iconAlpha = 1.0f;</span>
+            
+            @Override
+            public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L565">                iconAlpha -= 0.05f; // Diminui a opacidade gradualmente</span>
+<span class="nc bnc" id="L566" title="All 2 branches missed.">                if (iconAlpha &lt;= 0f) {</span>
+<span class="nc" id="L567">                    iconAlpha = 0f;</span>
+<span class="nc" id="L568">                    iconsHidden = true;</span>
+<span class="nc" id="L569">                    ((Timer) e.getSource()).stop();</span>
+                }
+                
+                // Aplica a opacidade aos ícones
+<span class="nc bnc" id="L573" title="All 2 branches missed.">                for (CharacterButton btn : characterButtons) {</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">                    btn.setVisible(iconAlpha &gt; 0f);</span>
+<span class="nc" id="L575">                }</span>
+                
+                // Esconde também o indicador do jogador
+<span class="nc bnc" id="L578" title="All 2 branches missed.">                if (playerIndicator != null) {</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">                    playerIndicator.setVisible(iconAlpha &gt; 0f);</span>
+                }
+                
+<span class="nc" id="L582">                repaint();</span>
+<span class="nc" id="L583">            }</span>
+        });
+<span class="nc" id="L585">        hideTimer.start();</span>
+<span class="nc" id="L586">    }</span>
+
+    private void startBackgroundTransition() {
+        // Timer para transição suave do fundo
+<span class="nc" id="L590">        transitionTimer = new Timer(50, new ActionListener() {</span>
+            @Override
+            public void actionPerformed(ActionEvent e) {
+<span class="nc" id="L593">                transitionAlpha += 0.02f; // Aumenta a opacidade gradualmente</span>
+<span class="nc bnc" id="L594" title="All 2 branches missed.">                if (transitionAlpha &gt;= 1.0f) {</span>
+<span class="nc" id="L595">                    transitionAlpha = 1.0f;</span>
+<span class="nc" id="L596">                    ((Timer) e.getSource()).stop();</span>
+                }
+<span class="nc" id="L598">                repaint();</span>
+<span class="nc" id="L599">            }</span>
+        });
+<span class="nc" id="L601">        transitionTimer.start();</span>
+<span class="nc" id="L602">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

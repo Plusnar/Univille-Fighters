@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArenaScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">ArenaScreen.java</span></div><h1>ArenaScreen.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.HashSet;
+import java.io.File;
+import java.util.Random;
+
+public class ArenaScreen extends JPanel implements ActionListener, KeyListener {
+    private final GameWindow window;
+    private final Timer timer;
+    private final Player player1;
+    private final Player player2;
+<span class="fc" id="L15">    private final HashSet&lt;Integer&gt; keysPressed = new HashSet&lt;&gt;();</span>
+    private final Image background;
+    private final String arenaName;
+
+    // Sistema de rounds
+<span class="fc" id="L20">    private int currentRound = 1;</span>
+<span class="fc" id="L21">    private int player1Wins = 0;</span>
+<span class="fc" id="L22">    private int player2Wins = 0;</span>
+<span class="fc" id="L23">    private boolean roundEnded = false;</span>
+<span class="fc" id="L24">    private boolean matchEnded = false;</span>
+<span class="fc" id="L25">    private long roundEndTime = 0;</span>
+<span class="fc" id="L26">    private long matchEndTime = 0;</span>
+<span class="fc" id="L27">    private String winnerName = &quot;&quot;;</span>
+<span class="fc" id="L28">    private boolean showWinnerMessage = false;</span>
+<span class="fc" id="L29">    private String roundWinnerName = &quot;&quot;; // Vencedor do round atual</span>
+<span class="fc" id="L30">    private boolean showRoundWinnerMessage = false; // Mostra mensagem de vitória do round</span>
+    private Timer roundTimer;
+    private Timer matchTimer;
+
+    // Sistema de countdown
+    private Timer countdownTimer;
+<span class="fc" id="L36">    private int countdown = 3;</span>
+    private JLabel countdownLabel;
+<span class="fc" id="L38">    private boolean gameStarted = false;</span>
+
+    // Base dimensions (1920x1080)
+    private static final int BASE_WIDTH = 1920;
+    private static final int BASE_HEIGHT = 1080;
+    private static final int GROUND_Y_POSITION = BASE_HEIGHT - 224; // Posição Y do chão
+    private static final int PLAYER_HEIGHT = 400; // Altura do player
+    
+    // Posições iniciais dos jogadores
+    private static final int PLAYER1_INITIAL_X = 450;
+    private static final int PLAYER2_INITIAL_X = 1350;
+    private static final int PLAYER_INITIAL_Y = GROUND_Y_POSITION - PLAYER_HEIGHT;
+
+<span class="fc" id="L51">    public ArenaScreen(GameWindow window, Character char1, Character char2, String arenaName) {</span>
+<span class="fc" id="L52">        System.out.println(&quot;[DEBUG] ArenaScreen criado!&quot;);</span>
+<span class="fc" id="L53">        this.window = window;</span>
+<span class="fc" id="L54">        this.arenaName = arenaName;</span>
+<span class="fc" id="L55">        setLayout(null);</span>
+<span class="fc" id="L56">        setFocusable(true);</span>
+<span class="fc" id="L57">        addKeyListener(this);</span>
+        
+        // A posição Y inicial do jogador é calculada para que seus &quot;pés&quot; toquem o chão.
+<span class="fc" id="L60">        int playerInitialY = GROUND_Y_POSITION - PLAYER_HEIGHT;</span>
+
+        // Initialize players with base positions
+<span class="fc" id="L63">        player1 = new Player(char1, PLAYER1_INITIAL_X, PLAYER_INITIAL_Y, GROUND_Y_POSITION);</span>
+<span class="fc" id="L64">        player2 = new Player(char2, PLAYER2_INITIAL_X, PLAYER_INITIAL_Y, GROUND_Y_POSITION);</span>
+<span class="fc" id="L65">        player1.setOpponent(player2);</span>
+<span class="fc" id="L66">        player2.setOpponent(player1);</span>
+
+        // Música fixa da arena: arena5.wav
+<span class="fc" id="L69">        AudioManager.getInstance().playMusic(&quot;arena5&quot;, true);</span>
+
+        // Carrega a imagem de fundo da arena
+<span class="fc" id="L72">        String backgroundResource = &quot;/images/arenas/&quot; + arenaName.toLowerCase().replace(&quot; &quot;, &quot;_&quot;) + &quot;_background.png&quot;;</span>
+<span class="fc" id="L73">        java.net.URL bgUrl = getClass().getResource(backgroundResource);</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (bgUrl != null) {</span>
+<span class="nc" id="L75">            background = new ImageIcon(bgUrl).getImage();</span>
+        } else {
+<span class="fc" id="L77">            System.err.println(&quot;Imagem de fundo da arena não encontrada: &quot; + backgroundResource);</span>
+<span class="fc" id="L78">            background = null;</span>
+        }
+
+<span class="fc" id="L81">        timer = new Timer(1000 / 60, this);</span>
+<span class="fc" id="L82">        timer.start();</span>
+
+        // Inicializa o label do countdown
+<span class="fc" id="L85">        countdownLabel = new JLabel(&quot;3&quot;, SwingConstants.CENTER);</span>
+<span class="fc" id="L86">        countdownLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 72));</span>
+<span class="fc" id="L87">        countdownLabel.setForeground(Color.WHITE);</span>
+<span class="fc" id="L88">        countdownLabel.setBounds(0, 0, getWidth(), getHeight());</span>
+<span class="fc" id="L89">        add(countdownLabel);</span>
+
+        // Inicia o countdown
+<span class="fc" id="L92">        countdownTimer = new Timer(1000, e -&gt; {</span>
+<span class="fc" id="L93">            countdown--;</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">            if (countdown &gt; 0) {</span>
+                // Atualiza o label do countdown
+<span class="fc" id="L96">                countdownLabel.setText(String.valueOf(countdown));</span>
+            } else {
+                // Countdown terminou, inicia a luta
+<span class="nc" id="L99">                countdownTimer.stop();</span>
+<span class="nc" id="L100">                countdownLabel.setVisible(false);</span>
+<span class="nc" id="L101">                gameStarted = true;</span>
+<span class="nc" id="L102">                startGame();</span>
+            }
+<span class="fc" id="L104">        });</span>
+<span class="fc" id="L105">        countdownTimer.start();</span>
+
+<span class="fc" id="L107">        SwingUtilities.invokeLater(this::requestFocusInWindow);</span>
+<span class="fc" id="L108">    }</span>
+
+    @Override
+    protected void paintComponent(Graphics g) {
+<span class="nc" id="L112">        super.paintComponent(g);</span>
+<span class="nc" id="L113">        Graphics2D g2d = (Graphics2D) g;</span>
+        
+        // Enable anti-aliasing
+<span class="nc" id="L116">        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);</span>
+<span class="nc" id="L117">        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);</span>
+
+        // Get current scale factor
+<span class="nc" id="L120">        double scale = window.getScaleFactor();</span>
+        
+        // Scale the graphics context
+<span class="nc" id="L123">        g2d.scale(scale, scale);</span>
+
+        // Draw background
+<span class="nc" id="L126">        g2d.drawImage(background, 0, 0, BASE_WIDTH, BASE_HEIGHT, this);</span>
+
+        // Draw players
+<span class="nc" id="L129">        player1.draw(g2d);</span>
+<span class="nc" id="L130">        player2.draw(g2d);</span>
+
+        // Draw health bars
+<span class="nc" id="L133">        g2d.setColor(Color.GREEN);</span>
+<span class="nc" id="L134">        g2d.fillRect(75, 45, player1.getCharacter().getHealth() * 3, 30);</span>
+<span class="nc" id="L135">        g2d.fillRect(BASE_WIDTH - 75 - player2.getCharacter().getHealth() * 3, 45, </span>
+<span class="nc" id="L136">                    player2.getCharacter().getHealth() * 3, 30);</span>
+
+        // Draw special attack cooldown bars
+<span class="nc" id="L139">        drawSpecialAttackBar(g2d, 75, 85, player1); // Player 1 (esquerda)</span>
+<span class="nc" id="L140">        drawSpecialAttackBar(g2d, BASE_WIDTH - 75 - 300, 85, player2); // Player 2 (direita)</span>
+
+<span class="nc" id="L142">        g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L143">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 24));</span>
+<span class="nc" id="L144">        g2d.drawString(player1.getCharacter().getName(), 75, 35);</span>
+<span class="nc" id="L145">        g2d.drawString(player2.getCharacter().getName(), BASE_WIDTH - 270, 35);</span>
+
+        // Desenha informações dos rounds
+<span class="nc" id="L148">        drawRoundInfo(g2d);</span>
+        
+        // Desenha mensagem de vitória do round
+<span class="nc bnc" id="L151" title="All 2 branches missed.">        if (showRoundWinnerMessage) {</span>
+<span class="nc" id="L152">            drawRoundWinnerMessage(g2d);</span>
+        }
+        
+        // Desenha mensagem de vitória do match
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (showWinnerMessage) {</span>
+<span class="nc" id="L157">            drawWinnerMessage(g2d);</span>
+        }
+<span class="nc" id="L159">    }</span>
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // Se o round ou match terminou, não processa mais inputs
+<span class="pc bpc" id="L164" title="2 of 4 branches missed.">        if (roundEnded || matchEnded) {</span>
+<span class="nc" id="L165">            return;</span>
+        }
+
+<span class="pc bpc" id="L168" title="2 of 4 branches missed.">        boolean p1Moving = keysPressed.contains(KeyEvent.VK_A) || keysPressed.contains(KeyEvent.VK_D);</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_A)) player1.moveLeft();</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_D)) player1.moveRight();</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_W)) player1.jump();</span>
+<span class="fc" id="L172">        boolean p1Crouching = keysPressed.contains(KeyEvent.VK_S);</span>
+<span class="fc" id="L173">        player1.setCrouching(p1Crouching);</span>
+<span class="fc" id="L174">        boolean p1Blocking = keysPressed.contains(KeyEvent.VK_Q);</span>
+<span class="fc" id="L175">        player1.setBlocking(p1Blocking);</span>
+
+<span class="pc bpc" id="L177" title="2 of 4 branches missed.">        boolean p2Moving = keysPressed.contains(KeyEvent.VK_LEFT) || keysPressed.contains(KeyEvent.VK_RIGHT);</span>
+<span class="pc bpc" id="L178" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_LEFT)) player2.moveLeft();</span>
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_RIGHT)) player2.moveRight();</span>
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_UP)) player2.jump();</span>
+<span class="fc" id="L181">        boolean p2Crouching = keysPressed.contains(KeyEvent.VK_DOWN);</span>
+<span class="fc" id="L182">        player2.setCrouching(p2Crouching);</span>
+<span class="fc" id="L183">        boolean p2Blocking = keysPressed.contains(KeyEvent.VK_NUMPAD2);</span>
+<span class="fc" id="L184">        player2.setBlocking(p2Blocking);</span>
+
+        // Attack methods
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_SPACE)) player1.punch(player2);</span>
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_F)) player1.kick(player2);</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_G)) player1.specialAttack(player2);</span>
+
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_ENTER)) player2.punch(player1);</span>
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_NUMPAD0)) player2.kick(player1);</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        if (keysPressed.contains(KeyEvent.VK_NUMPAD1)) player2.specialAttack(player1);</span>
+
+        // Finalização - qualquer ataque pode finalizar um oponente nocauteado
+<span class="pc bpc" id="L196" title="1 of 2 branches missed.">        if (player2.canBeFinished()) {</span>
+<span class="nc bnc" id="L197" title="All 6 branches missed.">            if (keysPressed.contains(KeyEvent.VK_SPACE) || keysPressed.contains(KeyEvent.VK_F) || keysPressed.contains(KeyEvent.VK_G)) {</span>
+<span class="nc" id="L198">                player2.finish(player1.isFacingRight());</span>
+            }
+        }
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        if (player1.canBeFinished()) {</span>
+<span class="nc bnc" id="L202" title="All 6 branches missed.">            if (keysPressed.contains(KeyEvent.VK_ENTER) || keysPressed.contains(KeyEvent.VK_NUMPAD0) || keysPressed.contains(KeyEvent.VK_NUMPAD1)) {</span>
+<span class="nc" id="L203">                player1.finish(player2.isFacingRight());</span>
+            }
+        }
+
+        // Update animation states based on input
+<span class="fc" id="L208">        player1.updateAnimationState(p1Moving, p1Crouching, p1Blocking);</span>
+<span class="fc" id="L209">        player2.updateAnimationState(p2Moving, p2Crouching, p2Blocking);</span>
+
+<span class="fc" id="L211">        player1.update();</span>
+<span class="fc" id="L212">        player2.update();</span>
+
+        // Keep players within bounds (exceto durante knockback final)
+<span class="pc bpc" id="L215" title="1 of 2 branches missed.">        if (!player1.isFinalKnockback()) {</span>
+<span class="fc" id="L216">            int leftLimit = 0;</span>
+<span class="fc" id="L217">            int rightLimit = (int)(BASE_WIDTH - player1.getWidth());</span>
+<span class="fc" id="L218">            player1.setX(Math.max(leftLimit, Math.min(rightLimit, player1.getX())));</span>
+        }
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (!player2.isFinalKnockback()) {</span>
+<span class="fc" id="L221">            int leftLimit = 0;</span>
+<span class="fc" id="L222">            int rightLimit = (int)(BASE_WIDTH - player2.getWidth());</span>
+<span class="fc" id="L223">            player2.setX(Math.max(leftLimit, Math.min(rightLimit, player2.getX())));</span>
+        }
+
+        // Verifica se um round terminou
+<span class="fc" id="L227">        checkRoundEnd();</span>
+
+<span class="fc" id="L229">        repaint();</span>
+<span class="fc" id="L230">    }</span>
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+<span class="nc" id="L234">        keysPressed.add(e.getKeyCode());</span>
+<span class="nc" id="L235">    }</span>
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+<span class="nc" id="L239">        keysPressed.remove(e.getKeyCode());</span>
+<span class="nc" id="L240">    }</span>
+
+    @Override
+<span class="nc" id="L243">    public void keyTyped(KeyEvent e) {}</span>
+
+    private void drawRoundInfo(Graphics2D g2d) {
+<span class="nc" id="L246">        g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L247">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 20));</span>
+        
+        // Round atual
+<span class="nc" id="L250">        String roundText = &quot;ROUND &quot; + currentRound;</span>
+<span class="nc" id="L251">        FontMetrics fm = g2d.getFontMetrics();</span>
+<span class="nc" id="L252">        int roundX = (BASE_WIDTH - fm.stringWidth(roundText)) / 2;</span>
+<span class="nc" id="L253">        g2d.drawString(roundText, roundX, 35);</span>
+        
+        // Placar
+<span class="nc" id="L256">        String scoreText = player1Wins + &quot; - &quot; + player2Wins;</span>
+<span class="nc" id="L257">        int scoreX = (BASE_WIDTH - fm.stringWidth(scoreText)) / 2;</span>
+<span class="nc" id="L258">        g2d.drawString(scoreText, scoreX, 60);</span>
+<span class="nc" id="L259">    }</span>
+
+    private void drawWinnerMessage(Graphics2D g2d) {
+        // Fundo semi-transparente
+<span class="nc" id="L263">        g2d.setColor(new Color(0, 0, 0, 180));</span>
+<span class="nc" id="L264">        g2d.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);</span>
+        
+        // Mensagem de vitória
+<span class="nc" id="L267">        g2d.setColor(Color.YELLOW);</span>
+<span class="nc" id="L268">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 72));</span>
+<span class="nc" id="L269">        String winnerText = winnerName + &quot; VENCE!&quot;;</span>
+<span class="nc" id="L270">        FontMetrics fm = g2d.getFontMetrics();</span>
+<span class="nc" id="L271">        int textX = (BASE_WIDTH - fm.stringWidth(winnerText)) / 2;</span>
+<span class="nc" id="L272">        int textY = BASE_HEIGHT / 2;</span>
+<span class="nc" id="L273">        g2d.drawString(winnerText, textX, textY);</span>
+        
+        // Subtexto
+<span class="nc" id="L276">        g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L277">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 36));</span>
+<span class="nc" id="L278">        String subText = &quot;Retornando ao menu...&quot;;</span>
+<span class="nc" id="L279">        int subX = (BASE_WIDTH - fm.stringWidth(subText)) / 2;</span>
+<span class="nc" id="L280">        g2d.drawString(subText, subX, textY + 60);</span>
+<span class="nc" id="L281">    }</span>
+
+    private void drawRoundWinnerMessage(Graphics2D g2d) {
+        // Fundo semi-transparente
+<span class="nc" id="L285">        g2d.setColor(new Color(0, 0, 0, 150));</span>
+<span class="nc" id="L286">        g2d.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);</span>
+        
+        // Mensagem de vitória do round
+<span class="nc" id="L289">        g2d.setColor(Color.ORANGE);</span>
+<span class="nc" id="L290">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 60));</span>
+<span class="nc" id="L291">        String roundText = &quot;ROUND &quot; + currentRound + &quot; - &quot; + roundWinnerName + &quot; VENCE!&quot;;</span>
+<span class="nc" id="L292">        FontMetrics fm = g2d.getFontMetrics();</span>
+<span class="nc" id="L293">        int textX = (BASE_WIDTH - fm.stringWidth(roundText)) / 2;</span>
+<span class="nc" id="L294">        int textY = BASE_HEIGHT / 2;</span>
+<span class="nc" id="L295">        g2d.drawString(roundText, textX, textY);</span>
+        
+        // Subtexto
+<span class="nc" id="L298">        g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L299">        g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 30));</span>
+<span class="nc" id="L300">        String subText = &quot;Próximo round em 3 segundos...&quot;;</span>
+<span class="nc" id="L301">        int subX = (BASE_WIDTH - fm.stringWidth(subText)) / 2;</span>
+<span class="nc" id="L302">        g2d.drawString(subText, subX, textY + 50);</span>
+<span class="nc" id="L303">    }</span>
+
+    private void drawSpecialAttackBar(Graphics2D g2d, int x, int y, Player player) {
+<span class="nc" id="L306">        int barWidth = 300;</span>
+<span class="nc" id="L307">        int barHeight = 15;</span>
+        
+        // Desenha o fundo da barra (cinza escuro)
+<span class="nc" id="L310">        g2d.setColor(new Color(50, 50, 50));</span>
+<span class="nc" id="L311">        g2d.fillRect(x, y, barWidth, barHeight);</span>
+        
+        // Calcula o progresso do cooldown
+<span class="nc" id="L314">        double progress = player.getSpecialAttackProgress();</span>
+<span class="nc" id="L315">        int fillWidth = (int)(barWidth * progress);</span>
+        
+        // Desenha a barra de progresso
+<span class="nc bnc" id="L318" title="All 2 branches missed.">        if (progress &gt;= 1.0) {</span>
+            // Verde quando pronto
+<span class="nc" id="L320">            g2d.setColor(Color.GREEN);</span>
+            
+            // Adiciona efeito de brilho quando pronto
+<span class="nc" id="L323">            long currentTime = System.currentTimeMillis();</span>
+<span class="nc" id="L324">            float glowIntensity = (float)(0.7 + 0.3 * Math.sin(currentTime * 0.01)); // Efeito pulsante</span>
+<span class="nc" id="L325">            g2d.setColor(new Color(0, (int)(255 * glowIntensity), 0));</span>
+<span class="nc" id="L326">        } else {</span>
+            // Laranja quando carregando
+<span class="nc" id="L328">            g2d.setColor(new Color(255, 165, 0));</span>
+        }
+<span class="nc" id="L330">        g2d.fillRect(x, y, fillWidth, barHeight);</span>
+        
+        // Desenha a borda da barra
+<span class="nc bnc" id="L333" title="All 2 branches missed.">        if (progress &gt;= 1.0) {</span>
+            // Borda brilhante quando pronto
+<span class="nc" id="L335">            g2d.setColor(Color.YELLOW);</span>
+<span class="nc" id="L336">            g2d.setStroke(new BasicStroke(3));</span>
+        } else {
+            // Borda normal quando carregando
+<span class="nc" id="L339">            g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L340">            g2d.setStroke(new BasicStroke(2));</span>
+        }
+<span class="nc" id="L342">        g2d.drawRect(x, y, barWidth, barHeight);</span>
+        
+        // Desenha o texto &quot;ESPECIAL&quot;
+<span class="nc bnc" id="L345" title="All 2 branches missed.">        if (progress &gt;= 1.0) {</span>
+            // Texto brilhante quando pronto
+<span class="nc" id="L347">            g2d.setColor(Color.YELLOW);</span>
+<span class="nc" id="L348">            g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 14));</span>
+        } else {
+            // Texto normal quando carregando
+<span class="nc" id="L351">            g2d.setColor(Color.WHITE);</span>
+<span class="nc" id="L352">            g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 12));</span>
+        }
+<span class="nc" id="L354">        String text = &quot;ESPECIAL&quot;;</span>
+<span class="nc" id="L355">        FontMetrics fm = g2d.getFontMetrics();</span>
+<span class="nc" id="L356">        int textX = x + (barWidth - fm.stringWidth(text)) / 2;</span>
+<span class="nc" id="L357">        int textY = y + (barHeight + fm.getAscent()) / 2;</span>
+<span class="nc" id="L358">        g2d.drawString(text, textX, textY);</span>
+        
+        // Adiciona texto &quot;PRONTO!&quot; quando o golpe especial estiver disponível
+<span class="nc bnc" id="L361" title="All 2 branches missed.">        if (progress &gt;= 1.0) {</span>
+<span class="nc" id="L362">            g2d.setColor(Color.YELLOW);</span>
+<span class="nc" id="L363">            g2d.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 10));</span>
+<span class="nc" id="L364">            String readyText = &quot;PRONTO!&quot;;</span>
+<span class="nc" id="L365">            FontMetrics fmReady = g2d.getFontMetrics();</span>
+<span class="nc" id="L366">            int readyX = x + (barWidth - fmReady.stringWidth(readyText)) / 2;</span>
+<span class="nc" id="L367">            int readyY = y + barHeight + 15;</span>
+<span class="nc" id="L368">            g2d.drawString(readyText, readyX, readyY);</span>
+        }
+<span class="nc" id="L370">    }</span>
+
+    private void checkRoundEnd() {
+        // Verifica se um jogador foi finalizado
+<span class="pc bpc" id="L374" title="2 of 4 branches missed.">        if (player1.isBeingFinished() || player2.isBeingFinished()) {</span>
+<span class="nc bnc" id="L375" title="All 2 branches missed.">            if (!roundEnded) {</span>
+<span class="nc" id="L376">                roundEnded = true;</span>
+<span class="nc" id="L377">                roundEndTime = System.currentTimeMillis();</span>
+                
+                // Determina o vencedor do round
+<span class="nc bnc" id="L380" title="All 2 branches missed.">                if (player1.isBeingFinished()) {</span>
+<span class="nc" id="L381">                    player2Wins++;</span>
+<span class="nc" id="L382">                    roundWinnerName = player2.getCharacter().getName();</span>
+                } else {
+<span class="nc" id="L384">                    player1Wins++;</span>
+<span class="nc" id="L385">                    roundWinnerName = player1.getCharacter().getName();</span>
+                }
+                
+                // Mostra mensagem de vitória do round
+<span class="nc" id="L389">                showRoundWinnerMessage = true;</span>
+                
+                // Inicia timer para próximo round ou fim do match
+<span class="nc" id="L392">                roundTimer = new Timer(3000, e -&gt; {</span>
+<span class="nc" id="L393">                    showRoundWinnerMessage = false; // Esconde mensagem do round</span>
+<span class="nc bnc" id="L394" title="All 2 branches missed.">                    if (currentRound &lt; 3) {</span>
+<span class="nc" id="L395">                        startNewRound();</span>
+                    } else {
+<span class="nc" id="L397">                        endMatch();</span>
+                    }
+<span class="nc" id="L399">                    ((Timer)e.getSource()).stop();</span>
+<span class="nc" id="L400">                });</span>
+<span class="nc" id="L401">                roundTimer.setRepeats(false);</span>
+<span class="nc" id="L402">                roundTimer.start();</span>
+            }
+        }
+<span class="fc" id="L405">    }</span>
+
+    private void startNewRound() {
+<span class="nc" id="L408">        currentRound++;</span>
+<span class="nc" id="L409">        roundEnded = false;</span>
+<span class="nc" id="L410">        showRoundWinnerMessage = false; // Esconde mensagem do round anterior</span>
+        
+        // Reseta os jogadores para posições iniciais
+<span class="nc" id="L413">        player1.resetForNewRound();</span>
+<span class="nc" id="L414">        player2.resetForNewRound();</span>
+<span class="nc" id="L415">        player1.setX(PLAYER1_INITIAL_X);</span>
+<span class="nc" id="L416">        player1.setY(PLAYER_INITIAL_Y);</span>
+<span class="nc" id="L417">        player2.setX(PLAYER2_INITIAL_X);</span>
+<span class="nc" id="L418">        player2.setY(PLAYER_INITIAL_Y);</span>
+<span class="nc" id="L419">    }</span>
+
+    private void endMatch() {
+<span class="nc" id="L422">        matchEnded = true;</span>
+<span class="nc" id="L423">        matchEndTime = System.currentTimeMillis();</span>
+<span class="nc" id="L424">        showRoundWinnerMessage = false; // Esconde mensagem do round</span>
+        
+        // Determina o vencedor final
+<span class="nc bnc" id="L427" title="All 2 branches missed.">        if (player1Wins &gt; player2Wins) {</span>
+<span class="nc" id="L428">            winnerName = player1.getCharacter().getName();</span>
+        } else {
+<span class="nc" id="L430">            winnerName = player2.getCharacter().getName();</span>
+        }
+        
+        // Mostra mensagem de vitória final
+<span class="nc" id="L434">        showWinnerMessage = true;</span>
+        
+        // Timer para voltar ao menu
+<span class="nc" id="L437">        matchTimer = new Timer(5000, e -&gt; {</span>
+<span class="nc" id="L438">            window.switchTo(new CharacterSelectionScreen(window));</span>
+<span class="nc" id="L439">            ((Timer)e.getSource()).stop();</span>
+<span class="nc" id="L440">        });</span>
+<span class="nc" id="L441">        matchTimer.setRepeats(false);</span>
+<span class="nc" id="L442">        matchTimer.start();</span>
+<span class="nc" id="L443">    }</span>
+
+    private void startGame() {
+        // O jogo já está iniciado, apenas garante que o foco está correto
+<span class="nc" id="L447">        requestFocusInWindow();</span>
+<span class="nc" id="L448">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

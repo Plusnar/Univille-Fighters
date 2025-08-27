@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AudioManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">AudioManager.java</span></div><h1>AudioManager.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javax.sound.sampled.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+public class AudioManager {
+    private static AudioManager instance;
+    private Clip currentMusic;
+    private Clip currentSound;
+    private Map&lt;String, String&gt; audioFiles;
+<span class="fc" id="L14">    private boolean isMuted = false;</span>
+    
+<span class="fc" id="L16">    private AudioManager() {</span>
+<span class="fc" id="L17">        audioFiles = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L18">        loadAudioFiles();</span>
+<span class="fc" id="L19">    }</span>
+    
+    public static AudioManager getInstance() {
+<span class="fc bfc" id="L22" title="All 2 branches covered.">        if (instance == null) {</span>
+<span class="fc" id="L23">            instance = new AudioManager();</span>
+        }
+<span class="fc" id="L25">        return instance;</span>
+    }
+    
+    private void loadAudioFiles() {
+        // Músicas de fundo
+<span class="fc" id="L30">        audioFiles.put(&quot;univille&quot;, &quot;/audio/univille.wav&quot;);</span>
+<span class="fc" id="L31">        audioFiles.put(&quot;menu&quot;, &quot;/audio/menu_music.wav&quot;);</span>
+<span class="fc" id="L32">        audioFiles.put(&quot;characters&quot;, &quot;/audio/character_select_music.wav&quot;);</span>
+<span class="fc" id="L33">        audioFiles.put(&quot;arenas&quot;, &quot;/audio/arena_selection.wav&quot;);</span>
+<span class="fc" id="L34">        audioFiles.put(&quot;tutorial&quot;, &quot;/audio/tutorial.wav&quot;);</span>
+        
+        // Músicas das arenas
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        for (int i = 2; i &lt;= 9; i++) {</span>
+<span class="fc" id="L38">            audioFiles.put(&quot;arena&quot; + i, &quot;/audio/arenas_music/arena&quot; + i + &quot;.wav&quot;);</span>
+        }
+        
+        // Música fixa arena5.wav na raiz de audio
+<span class="fc" id="L42">        audioFiles.put(&quot;arena5&quot;, &quot;/audio/arena5.wav&quot;);</span>
+        
+        // Sons dos personagens
+<span class="fc" id="L45">        audioFiles.put(&quot;anna&quot;, &quot;/audio/Anna.wav&quot;);</span>
+<span class="fc" id="L46">        audioFiles.put(&quot;cesar&quot;, &quot;/audio/Cesar.wav&quot;);</span>
+<span class="fc" id="L47">        audioFiles.put(&quot;erik&quot;, &quot;/audio/Erik.wav&quot;);</span>
+<span class="fc" id="L48">        audioFiles.put(&quot;giovana&quot;, &quot;/audio/Giovana.wav&quot;);</span>
+<span class="fc" id="L49">        audioFiles.put(&quot;jean&quot;, &quot;/audio/Jean.wav&quot;);</span>
+<span class="fc" id="L50">        audioFiles.put(&quot;william&quot;, &quot;/audio/William.wav&quot;);</span>
+<span class="fc" id="L51">    }</span>
+    
+    public void playMusic(String musicName, boolean loop) {
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (isMuted) return;</span>
+        
+<span class="fc" id="L56">        stopCurrentMusic();</span>
+        
+<span class="fc" id="L58">        String resourcePath = audioFiles.get(musicName);</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">        if (resourcePath == null) {</span>
+<span class="nc" id="L60">            System.err.println(&quot;Arquivo de música não encontrado: &quot; + musicName);</span>
+<span class="nc" id="L61">            return;</span>
+        }
+        
+        try {
+<span class="fc" id="L65">            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(</span>
+<span class="fc" id="L66">                getClass().getResource(resourcePath)</span>
+            );
+<span class="fc" id="L68">            currentMusic = AudioSystem.getClip();</span>
+<span class="fc" id="L69">            currentMusic.open(audioInputStream);</span>
+            
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            if (loop) {</span>
+<span class="fc" id="L72">                currentMusic.loop(Clip.LOOP_CONTINUOUSLY);</span>
+            } else {
+<span class="fc" id="L74">                currentMusic.start();</span>
+            }
+<span class="nc" id="L76">        } catch (Exception e) {</span>
+<span class="nc" id="L77">            System.err.println(&quot;Erro ao reproduzir música &quot; + musicName + &quot;: &quot; + e.getMessage());</span>
+<span class="fc" id="L78">        }</span>
+<span class="fc" id="L79">    }</span>
+    
+    public void playSound(String soundName) {
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (isMuted) return;</span>
+        
+<span class="nc" id="L84">        String resourcePath = audioFiles.get(soundName);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (resourcePath == null) {</span>
+<span class="nc" id="L86">            System.err.println(&quot;Arquivo de som não encontrado: &quot; + soundName);</span>
+<span class="nc" id="L87">            return;</span>
+        }
+        
+        try {
+<span class="nc" id="L91">            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(</span>
+<span class="nc" id="L92">                getClass().getResource(resourcePath)</span>
+            );
+<span class="nc" id="L94">            Clip soundClip = AudioSystem.getClip();</span>
+<span class="nc" id="L95">            soundClip.open(audioInputStream);</span>
+<span class="nc" id="L96">            soundClip.start();</span>
+<span class="nc" id="L97">        } catch (Exception e) {</span>
+<span class="nc" id="L98">            System.err.println(&quot;Erro ao reproduzir som &quot; + soundName + &quot;: &quot; + e.getMessage());</span>
+<span class="nc" id="L99">        }</span>
+<span class="nc" id="L100">    }</span>
+    
+    public void stopCurrentMusic() {
+<span class="pc bpc" id="L103" title="1 of 4 branches missed.">        if (currentMusic != null &amp;&amp; currentMusic.isRunning()) {</span>
+<span class="fc" id="L104">            currentMusic.stop();</span>
+<span class="fc" id="L105">            currentMusic.close();</span>
+<span class="fc" id="L106">            currentMusic = null;</span>
+        }
+<span class="fc" id="L108">    }</span>
+    
+    public void stopCurrentSound() {
+<span class="nc bnc" id="L111" title="All 4 branches missed.">        if (currentSound != null &amp;&amp; currentSound.isRunning()) {</span>
+<span class="nc" id="L112">            currentSound.stop();</span>
+<span class="nc" id="L113">            currentSound.close();</span>
+<span class="nc" id="L114">            currentSound = null;</span>
+        }
+<span class="nc" id="L116">    }</span>
+    
+    public void stopAllAudio() {
+<span class="nc" id="L119">        stopCurrentMusic();</span>
+<span class="nc" id="L120">        stopCurrentSound();</span>
+<span class="nc" id="L121">    }</span>
+    
+    public void setMuted(boolean muted) {
+<span class="nc" id="L124">        this.isMuted = muted;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (muted) {</span>
+<span class="nc" id="L126">            stopAllAudio();</span>
+        }
+<span class="nc" id="L128">    }</span>
+    
+    public boolean isMuted() {
+<span class="nc" id="L131">        return isMuted;</span>
+    }
+    
+    public void toggleMute() {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        setMuted(!isMuted);</span>
+<span class="nc" id="L136">    }</span>
+    
+    // Toca música e executa um callback ao terminar
+    public void playMusicWithCallback(String musicName, boolean loop, Runnable onEnd) {
+<span class="pc bpc" id="L140" title="1 of 2 branches missed.">        if (isMuted) return;</span>
+<span class="fc" id="L141">        stopCurrentMusic();</span>
+<span class="fc" id="L142">        String resourcePath = audioFiles.get(musicName);</span>
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">        if (resourcePath == null) {</span>
+<span class="nc" id="L144">            System.err.println(&quot;Arquivo de música não encontrado: &quot; + musicName);</span>
+<span class="nc" id="L145">            return;</span>
+        }
+        try {
+<span class="fc" id="L148">            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(</span>
+<span class="fc" id="L149">                getClass().getResource(resourcePath)</span>
+            );
+<span class="fc" id="L151">            currentMusic = AudioSystem.getClip();</span>
+<span class="fc" id="L152">            currentMusic.open(audioInputStream);</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">            if (loop) {</span>
+<span class="nc" id="L154">                currentMusic.loop(Clip.LOOP_CONTINUOUSLY);</span>
+            } else {
+<span class="fc" id="L156">                currentMusic.start();</span>
+            }
+<span class="pc bpc" id="L158" title="2 of 4 branches missed.">            if (onEnd != null &amp;&amp; !loop) {</span>
+<span class="fc" id="L159">                currentMusic.addLineListener(event -&gt; {</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                    if (event.getType() == LineEvent.Type.STOP) {</span>
+<span class="nc" id="L161">                        currentMusic.close();</span>
+<span class="nc" id="L162">                        onEnd.run();</span>
+                    }
+<span class="nc" id="L164">                });</span>
+            }
+<span class="nc" id="L166">        } catch (Exception e) {</span>
+<span class="nc" id="L167">            System.err.println(&quot;Erro ao reproduzir música &quot; + musicName + &quot;: &quot; + e.getMessage());</span>
+<span class="fc" id="L168">        }</span>
+<span class="fc" id="L169">    }</span>
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

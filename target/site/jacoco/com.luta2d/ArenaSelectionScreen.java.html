@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ArenaSelectionScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">ArenaSelectionScreen.java</span></div><h1>ArenaSelectionScreen.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.io.File;
+import java.io.IOException;
+
+public class ArenaSelectionScreen extends JPanel implements ActionListener {
+    private final GameWindow window;
+    private final Image background;
+<span class="nc" id="L14">    private final List&lt;ArenaButton&gt; arenaButtons = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L15">    private String selectedArena = null;</span>
+<span class="nc" id="L16">    private boolean hoverPlayed = false;</span>
+    private JLabel previewLabel;
+    private JLabel arenaNameLabel;
+    private JButton backButton;
+    private Timer countdownTimer;
+<span class="nc" id="L21">    private int countdown = 3;</span>
+    private JLabel countdownLabel;
+    private JLayeredPane layeredPane;
+    private JLabel titleLabel;
+    private final Character player1Character;
+    private final Character player2Character;
+<span class="nc" id="L27">    private boolean fightStarted = false;</span>
+
+    // Nomes das arenas
+<span class="nc" id="L30">    private final String[] arenaNames = {</span>
+        &quot;Arena 2&quot;, &quot;Arena 3&quot;,
+        &quot;Arena 4&quot;, &quot;Arena 5&quot;, &quot;Arena 6&quot;,
+        &quot;Arena 7&quot;, &quot;Arena 8&quot;, &quot;Arena 9&quot;
+    };
+
+<span class="nc" id="L36">    public ArenaSelectionScreen(GameWindow window, Character player1Character, Character player2Character) {</span>
+<span class="nc" id="L37">        this.window = window;</span>
+<span class="nc" id="L38">        this.player1Character = player1Character;</span>
+<span class="nc" id="L39">        this.player2Character = player2Character;</span>
+<span class="nc" id="L40">        setLayout(new BorderLayout());</span>
+<span class="nc" id="L41">        setFocusable(true);</span>
+
+        // Inicia a música de seleção de arena
+<span class="nc" id="L44">        AudioManager.getInstance().playMusic(&quot;arena_selection&quot;, true);</span>
+
+<span class="nc" id="L46">        java.net.URL bgUrl = getClass().getResource(&quot;/images/smoke.gif&quot;);</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (bgUrl != null) {</span>
+<span class="nc" id="L48">            background = new ImageIcon(bgUrl).getImage();</span>
+        } else {
+<span class="nc" id="L50">            background = null;</span>
+        }
+
+        // Criar o JLayeredPane
+<span class="nc" id="L54">        layeredPane = new JLayeredPane();</span>
+<span class="nc" id="L55">        layeredPane.setLayout(null);</span>
+<span class="nc" id="L56">        add(layeredPane, BorderLayout.CENTER);</span>
+
+        // Create countdown label
+<span class="nc" id="L59">        countdownLabel = new JLabel(&quot;&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L60">        countdownLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 72));</span>
+<span class="nc" id="L61">        countdownLabel.setForeground(Color.WHITE);</span>
+<span class="nc" id="L62">        countdownLabel.setBounds(0, 50, getWidth(), 100);</span>
+<span class="nc" id="L63">        countdownLabel.setVisible(false);</span>
+<span class="nc" id="L64">        layeredPane.add(countdownLabel, JLayeredPane.MODAL_LAYER);</span>
+
+        // Create title label
+<span class="nc" id="L67">        titleLabel = new JLabel(&quot;SELECIONE A ARENA DE LUTA&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L68">        titleLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 48));</span>
+<span class="nc" id="L69">        titleLabel.setForeground(Color.YELLOW);</span>
+<span class="nc" id="L70">        titleLabel.setBounds(0, 30, getWidth(), 60);</span>
+<span class="nc" id="L71">        layeredPane.add(titleLabel, JLayeredPane.PALETTE_LAYER);</span>
+
+        // Create preview panel
+<span class="nc" id="L74">        JPanel previewPanel = new JPanel();</span>
+<span class="nc" id="L75">        previewPanel.setLayout(null);</span>
+<span class="nc" id="L76">        previewPanel.setOpaque(false);</span>
+<span class="nc" id="L77">        previewPanel.setBounds(0, 0, getWidth(), getHeight());</span>
+<span class="nc" id="L78">        layeredPane.add(previewPanel, JLayeredPane.PALETTE_LAYER);</span>
+
+<span class="nc" id="L80">        previewLabel = new JLabel();</span>
+<span class="nc" id="L81">        previewLabel.setBounds(0, 0, getWidth(), getHeight());</span>
+<span class="nc" id="L82">        previewPanel.add(previewLabel);</span>
+
+        // Create arena name label
+<span class="nc" id="L85">        arenaNameLabel = new JLabel(&quot;Select Arena&quot;, SwingConstants.CENTER);</span>
+<span class="nc" id="L86">        arenaNameLabel.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 32));</span>
+<span class="nc" id="L87">        arenaNameLabel.setForeground(Color.WHITE);</span>
+<span class="nc" id="L88">        arenaNameLabel.setBounds(0, 100, getWidth(), 40);</span>
+<span class="nc" id="L89">        layeredPane.add(arenaNameLabel, JLayeredPane.PALETTE_LAYER);</span>
+
+<span class="nc" id="L91">        int cols = 4;</span>
+<span class="nc" id="L92">        int rows = 2;</span>
+<span class="nc" id="L93">        int width = 300;</span>
+<span class="nc" id="L94">        int height = 150;</span>
+<span class="nc" id="L95">        int gap = 0;</span>
+
+<span class="nc" id="L97">        int panelWidth = 1280;</span>
+<span class="nc" id="L98">        int panelHeight = 720;</span>
+
+<span class="nc bnc" id="L100" title="All 4 branches missed.">        if (window.getWidth() &gt; 0 &amp;&amp; window.getHeight() &gt; 0) {</span>
+<span class="nc" id="L101">            panelWidth = window.getWidth();</span>
+<span class="nc" id="L102">            panelHeight = window.getHeight();</span>
+        }
+
+<span class="nc" id="L105">        int totalWidth = cols * width + (cols - 1) * gap;</span>
+<span class="nc" id="L106">        int startX = (panelWidth - totalWidth) / 2;</span>
+<span class="nc" id="L107">        int startY = panelHeight - (rows * (height + gap)) - 50;</span>
+
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        for (int i = 0; i &lt; arenaNames.length; i++) {</span>
+<span class="nc" id="L110">            int row = i / cols;</span>
+<span class="nc" id="L111">            int col = i % cols;</span>
+<span class="nc" id="L112">            int x = startX + col * (width + gap);</span>
+<span class="nc" id="L113">            int y = startY + row * (height + gap);</span>
+
+<span class="nc" id="L115">            ArenaButton btn = new ArenaButton(arenaNames[i], x, y, width, height, i);</span>
+<span class="nc" id="L116">            arenaButtons.add(btn);</span>
+
+<span class="nc" id="L118">            btn.addMouseListener(new MouseAdapter() {</span>
+                @Override
+                public void mouseClicked(MouseEvent e) {
+<span class="nc" id="L121">                    selectedArena = btn.name;</span>
+<span class="nc" id="L122">                    btn.setSelected(true);</span>
+<span class="nc" id="L123">                    startCountdown();</span>
+<span class="nc" id="L124">                }</span>
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                    if (!hoverPlayed) {</span>
+<span class="nc" id="L129">                        hoverPlayed = true;</span>
+                    }
+<span class="nc" id="L131">                }</span>
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+<span class="nc" id="L135">                    hoverPlayed = false;</span>
+<span class="nc" id="L136">                }</span>
+            });
+
+<span class="nc" id="L139">            layeredPane.add(btn, JLayeredPane.PALETTE_LAYER);</span>
+        }
+
+<span class="nc" id="L142">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L146">                    window.switchTo(new MenuScreen(window));</span>
+                }
+<span class="nc" id="L148">            }</span>
+        });
+<span class="nc" id="L150">    }</span>
+
+    @Override
+    public void removeNotify() {
+<span class="nc" id="L154">        super.removeNotify();</span>
+<span class="nc" id="L155">    }</span>
+
+    private void startCountdown() {
+<span class="nc" id="L158">        countdownLabel.setVisible(true);</span>
+<span class="nc" id="L159">        countdown = 3;</span>
+<span class="nc" id="L160">        countdownLabel.setText(String.valueOf(countdown));</span>
+
+<span class="nc" id="L162">        countdownTimer = new Timer(1000, e -&gt; {</span>
+<span class="nc" id="L163">            countdown--;</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">            if (countdown &gt; 0) {</span>
+<span class="nc" id="L165">                countdownLabel.setText(String.valueOf(countdown));</span>
+            } else {
+<span class="nc" id="L167">                countdownTimer.stop();</span>
+<span class="nc" id="L168">                countdownLabel.setVisible(false);</span>
+<span class="nc" id="L169">                startFight();</span>
+            }
+<span class="nc" id="L171">        });</span>
+<span class="nc" id="L172">        countdownTimer.start();</span>
+<span class="nc" id="L173">    }</span>
+
+    private void startFight() {
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        if (fightStarted) return;</span>
+<span class="nc" id="L177">        fightStarted = true;</span>
+<span class="nc" id="L178">        window.switchTo(new ArenaScreen(window, player1Character, player2Character, selectedArena));</span>
+<span class="nc" id="L179">    }</span>
+
+    @Override
+    protected void paintComponent(Graphics g) {
+<span class="nc" id="L183">        super.paintComponent(g);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        if (background != null) {</span>
+<span class="nc" id="L185">            g.drawImage(background, 0, 0, getWidth(), getHeight(), this);</span>
+        }
+<span class="nc" id="L187">    }</span>
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        // Implementação do ActionListener se necessário
+<span class="nc" id="L192">    }</span>
+
+    private static class ArenaButton extends JLabel {
+        private final String name;
+<span class="nc" id="L196">        private boolean isSelected = false;</span>
+<span class="nc" id="L197">        private Color borderColor = Color.BLACK;</span>
+        private final int index;
+        private ImageIcon arenaIcon;
+
+<span class="nc" id="L201">        public ArenaButton(String name, int x, int y, int width, int height, int index) {</span>
+<span class="nc" id="L202">            this.name = name;</span>
+<span class="nc" id="L203">            this.index = index;</span>
+<span class="nc" id="L204">            setBounds(x, y, width, height);</span>
+<span class="nc" id="L205">            loadArenaImage(width, height);</span>
+<span class="nc" id="L206">            setBorder(BorderFactory.createLineBorder(borderColor, 3));</span>
+<span class="nc" id="L207">            setOpaque(false);</span>
+<span class="nc" id="L208">        }</span>
+
+        private void loadArenaImage(int width, int height) {
+            try {
+<span class="nc" id="L212">                String imagePath = &quot;/images/arenas/&quot; + name.toLowerCase().replace(&quot; &quot;, &quot;_&quot;) + &quot;.png&quot;;</span>
+<span class="nc" id="L213">                java.net.URL arenaUrl = getClass().getResource(imagePath);</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">                if (arenaUrl != null) {</span>
+<span class="nc" id="L215">                    ImageIcon originalIcon = new ImageIcon(arenaUrl);</span>
+<span class="nc" id="L216">                    Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);</span>
+<span class="nc" id="L217">                    arenaIcon = new ImageIcon(scaledImage);</span>
+<span class="nc" id="L218">                    setIcon(arenaIcon);</span>
+<span class="nc" id="L219">                } else {</span>
+<span class="nc" id="L220">                    setBackground(new Color(100, 100, 100));</span>
+<span class="nc" id="L221">                    setOpaque(true);</span>
+                }
+<span class="nc" id="L223">            } catch (Exception e) {</span>
+<span class="nc" id="L224">                setBackground(new Color(100, 100, 100));</span>
+<span class="nc" id="L225">                setOpaque(true);</span>
+<span class="nc" id="L226">            }</span>
+<span class="nc" id="L227">        }</span>
+
+        public void setSelected(boolean selected) {
+<span class="nc" id="L230">            isSelected = selected;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            borderColor = selected ? Color.GREEN : Color.BLACK;</span>
+<span class="nc" id="L232">            setBorder(BorderFactory.createLineBorder(borderColor, 3));</span>
+<span class="nc" id="L233">            repaint();</span>
+<span class="nc" id="L234">        }</span>
+
+        @Override
+        protected void paintComponent(Graphics g) {
+<span class="nc" id="L238">            super.paintComponent(g);</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            if (isSelected) {</span>
+<span class="nc" id="L240">                g.setColor(new Color(0, 255, 0, 100));</span>
+<span class="nc" id="L241">                g.fillRect(0, 0, getWidth(), getHeight());</span>
+            }
+<span class="nc" id="L243">        }</span>
+    }
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

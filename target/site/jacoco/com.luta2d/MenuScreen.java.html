@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MenuScreen.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">MenuScreen.java</span></div><h1>MenuScreen.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.awt.image.BufferedImage;
+import java.awt.AlphaComposite;
+import javax.swing.Icon;
+
+public class MenuScreen extends JPanel {
+    private final GameWindow window;
+    private final Image backgroundImage;
+    private final JButton tutorialButton;
+    private final JButton playButton;
+    private final JButton creditsButton;
+
+<span class="fc" id="L18">    public MenuScreen(GameWindow window) {</span>
+<span class="fc" id="L19">        this.window = window;</span>
+<span class="fc" id="L20">        setLayout(null);</span>
+<span class="fc" id="L21">        setFocusable(true);</span>
+
+        // Inicia o sistema de som
+<span class="fc" id="L24">        AudioManager audioManager = AudioManager.getInstance();</span>
+        // Toca o título uma vez e só inicia a música do menu após terminar
+<span class="fc" id="L26">        audioManager.playMusicWithCallback(&quot;univille&quot;, false, () -&gt; {</span>
+<span class="nc" id="L27">            audioManager.playMusic(&quot;menu&quot;, true);</span>
+<span class="nc" id="L28">        });</span>
+
+        // Carrega a imagem de fundo
+<span class="fc" id="L31">        java.net.URL url = getClass().getResource(&quot;/images/fundo_menu.png&quot;);</span>
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">        if (url != null) {</span>
+<span class="fc" id="L33">            backgroundImage = new ImageIcon(url).getImage();</span>
+        } else {
+<span class="nc" id="L35">            System.err.println(&quot;Imagem de fundo não encontrada: /images/fundo_menu.png&quot;);</span>
+<span class="nc" id="L36">            backgroundImage = null;</span>
+        }
+
+        // Configuração dos botões
+<span class="fc" id="L40">        tutorialButton = new JButton();</span>
+<span class="fc" id="L41">        playButton = new JButton();</span>
+<span class="fc" id="L42">        creditsButton = new JButton();</span>
+
+        // Carrega a imagem do botão Tutorial
+<span class="fc" id="L45">        java.net.URL tutorialUrl = getClass().getResource(&quot;/images/tutorial.png&quot;);</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (tutorialUrl != null) {</span>
+<span class="fc" id="L47">            ImageIcon tutorialIcon = new ImageIcon(tutorialUrl);</span>
+<span class="fc" id="L48">            tutorialButton.setIcon(tutorialIcon);</span>
+<span class="fc" id="L49">        } else {</span>
+<span class="nc" id="L50">            System.err.println(&quot;Imagem do botão tutorial não encontrada: /images/tutorial.png&quot;);</span>
+<span class="nc" id="L51">            tutorialButton.setText(&quot;Tutorial&quot;);</span>
+        }
+
+        // Carrega a imagem do botão Jogar
+<span class="fc" id="L55">        java.net.URL playUrl = getClass().getResource(&quot;/images/jogar.png&quot;);</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        if (playUrl != null) {</span>
+<span class="fc" id="L57">            ImageIcon playIcon = new ImageIcon(playUrl);</span>
+<span class="fc" id="L58">            playButton.setIcon(playIcon);</span>
+<span class="fc" id="L59">        } else {</span>
+<span class="nc" id="L60">            System.err.println(&quot;Imagem do botão jogar não encontrada: /images/jogar.png&quot;);</span>
+<span class="nc" id="L61">            playButton.setText(&quot;Jogar&quot;);</span>
+        }
+
+        // Carrega a imagem do botão Créditos
+<span class="fc" id="L65">        java.net.URL creditsUrl = getClass().getResource(&quot;/images/creditos.png&quot;);</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        if (creditsUrl != null) {</span>
+<span class="fc" id="L67">            ImageIcon creditsIcon = new ImageIcon(creditsUrl);</span>
+<span class="fc" id="L68">            creditsButton.setIcon(creditsIcon);</span>
+<span class="fc" id="L69">        } else {</span>
+<span class="nc" id="L70">            System.err.println(&quot;Imagem do botão créditos não encontrada: /images/creditos.png&quot;);</span>
+<span class="nc" id="L71">            creditsButton.setText(&quot;Créditos&quot;);</span>
+        }
+
+        // Configuração visual dos botões
+<span class="fc" id="L75">        setupButton(tutorialButton);</span>
+<span class="fc" id="L76">        setupButton(playButton);</span>
+<span class="fc" id="L77">        setupButton(creditsButton);</span>
+
+        // Adiciona efeitos sonoros de hover
+<span class="fc" id="L80">        addHoverSound(tutorialButton);</span>
+<span class="fc" id="L81">        addHoverSound(playButton);</span>
+<span class="fc" id="L82">        addHoverSound(creditsButton);</span>
+
+        // Posicionamento dos botões
+<span class="fc" id="L85">        positionButtons();</span>
+
+        // Ações dos botões
+<span class="fc" id="L88">        playButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L89">            window.switchTo(new CharacterSelectionScreen(window));</span>
+<span class="nc" id="L90">        });</span>
+
+<span class="fc" id="L92">        tutorialButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L93">            window.switchTo(new TutorialScreen(window));</span>
+<span class="nc" id="L94">        });</span>
+
+<span class="fc" id="L96">        creditsButton.addActionListener(e -&gt; {</span>
+<span class="nc" id="L97">            window.switchTo(new CreditsScreen(window));</span>
+<span class="nc" id="L98">        });</span>
+
+        // ESC para sair de tela cheia
+<span class="fc" id="L101">        addKeyListener(new KeyAdapter() {</span>
+            @Override
+            public void keyPressed(KeyEvent e) {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {</span>
+<span class="nc" id="L105">                    window.setFullScreen(false);</span>
+                }
+<span class="nc" id="L107">            }</span>
+        });
+<span class="fc" id="L109">    }</span>
+
+    private void setupButton(JButton button) {
+<span class="fc" id="L112">        button.setFont(new Font(&quot;Arial&quot;, Font.BOLD, 24));</span>
+<span class="fc" id="L113">        button.setForeground(Color.WHITE);</span>
+<span class="fc" id="L114">        button.setBackground(new Color(0, 0, 0, 150));</span>
+<span class="fc" id="L115">        button.setFocusPainted(false);</span>
+<span class="fc" id="L116">        button.setBorderPainted(false);</span>
+<span class="fc" id="L117">        button.setCursor(new Cursor(Cursor.HAND_CURSOR));</span>
+<span class="fc" id="L118">        button.setContentAreaFilled(false);</span>
+<span class="fc" id="L119">        button.setOpaque(false);</span>
+<span class="fc" id="L120">        add(button);</span>
+<span class="fc" id="L121">    }</span>
+
+    private void addHoverSound(JButton button) {
+        // Removido som de hover
+<span class="fc" id="L125">    }</span>
+
+    private void positionButtons() {
+<span class="fc" id="L128">        int buttonWidth = 300;</span>
+<span class="fc" id="L129">        int buttonHeight = 100;</span>
+<span class="fc" id="L130">        int spacing = 30;</span>
+        
+        // Usa as dimensões do painel ou valores padrão se ainda não estiver definido
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">        int panelWidth = getWidth() &gt; 0 ? getWidth() : 1920;</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">        int panelHeight = getHeight() &gt; 0 ? getHeight() : 1080;</span>
+        
+<span class="fc" id="L136">        int startY = panelHeight - buttonHeight - 100;</span>
+
+        // Centraliza os botões horizontalmente
+<span class="fc" id="L139">        int totalWidth = (buttonWidth * 3) + (spacing * 2);</span>
+<span class="fc" id="L140">        int startX = (panelWidth - totalWidth) / 2;</span>
+
+        // Posiciona cada botão individualmente
+<span class="fc" id="L143">        tutorialButton.setBounds(startX, startY, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L144">        playButton.setBounds(startX + buttonWidth + spacing, startY, buttonWidth, buttonHeight);</span>
+<span class="fc" id="L145">        creditsButton.setBounds(startX + (buttonWidth + spacing) * 2, startY, buttonWidth, buttonHeight);</span>
+
+        // Força o repaint para garantir que os botões sejam exibidos corretamente
+<span class="fc" id="L148">        repaint();</span>
+<span class="fc" id="L149">    }</span>
+
+    @Override
+    protected void paintComponent(Graphics g) {
+<span class="nc" id="L153">        super.paintComponent(g);</span>
+<span class="nc" id="L154">        Graphics2D g2d = (Graphics2D) g;</span>
+        
+        // Habilita anti-aliasing para melhor qualidade visual
+<span class="nc" id="L157">        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);</span>
+<span class="nc" id="L158">        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);</span>
+
+        // Desenha o fundo
+<span class="nc bnc" id="L161" title="All 2 branches missed.">        if (backgroundImage != null) {</span>
+<span class="nc" id="L162">            g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);</span>
+        } else {
+<span class="nc" id="L164">            setBackground(Color.BLACK);</span>
+        }
+<span class="nc" id="L166">    }</span>
+
+    @Override
+    public void addNotify() {
+<span class="nc" id="L170">        super.addNotify();</span>
+        // Força o layout e repaint quando o painel for adicionado
+<span class="nc" id="L172">        SwingUtilities.invokeLater(() -&gt; {</span>
+<span class="nc" id="L173">            positionButtons();</span>
+<span class="nc" id="L174">            repaint();</span>
+<span class="nc" id="L175">        });</span>
+<span class="nc" id="L176">    }</span>
+
+    @Override
+    public void doLayout() {
+<span class="nc" id="L180">        super.doLayout();</span>
+<span class="nc" id="L181">        positionButtons();</span>
+<span class="nc" id="L182">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VideoPlayer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">univille-kombat</a> &gt; <a href="index.source.html" class="el_package">com.luta2d</a> &gt; <span class="el_source">VideoPlayer.java</span></div><h1>VideoPlayer.java</h1><pre class="source lang-java linenums">package com.luta2d;
+
+import javafx.application.Platform;
+import javafx.embed.swing.JFXPanel;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class VideoPlayer extends JPanel {
+    private final String videoPath;
+    private Runnable onVideoEnd;
+    private JFXPanel jfxPanel;
+    private MediaPlayer mediaPlayer;
+<span class="fc" id="L19">    private boolean isPlaying = false;</span>
+<span class="fc" id="L20">    private boolean isDisposed = false;</span>
+
+<span class="fc" id="L22">    public VideoPlayer(String videoPath) {</span>
+<span class="fc" id="L23">        this.videoPath = videoPath;</span>
+<span class="fc" id="L24">        setLayout(new BorderLayout());</span>
+<span class="fc" id="L25">        setBackground(Color.BLACK);</span>
+<span class="fc" id="L26">        jfxPanel = new JFXPanel();</span>
+<span class="fc" id="L27">        add(jfxPanel, BorderLayout.CENTER);</span>
+<span class="fc" id="L28">        Platform.setImplicitExit(false);</span>
+<span class="fc" id="L29">        Platform.runLater(() -&gt; {</span>
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">            if (!isDisposed) {</span>
+<span class="fc" id="L31">                StackPane root = new StackPane();</span>
+<span class="fc" id="L32">                Scene scene = new Scene(root);</span>
+<span class="fc" id="L33">                jfxPanel.setScene(scene);</span>
+            }
+<span class="fc" id="L35">        });</span>
+<span class="fc" id="L36">    }</span>
+
+    public void play(Runnable onVideoEnd) {
+<span class="pc bpc" id="L39" title="1 of 2 branches missed.">        if (isDisposed) return;</span>
+<span class="fc" id="L40">        this.onVideoEnd = onVideoEnd;</span>
+        try {
+<span class="fc" id="L42">            Platform.runLater(() -&gt; {</span>
+<span class="pc bpc" id="L43" title="1 of 2 branches missed.">                if (isDisposed) return;</span>
+                try {
+<span class="fc" id="L45">                    Media media = new Media(videoPath);</span>
+<span class="fc" id="L46">                    mediaPlayer = new MediaPlayer(media);</span>
+<span class="fc" id="L47">                    MediaView mediaView = new MediaView(mediaPlayer);</span>
+<span class="fc" id="L48">                    mediaView.setFitWidth(getWidth());</span>
+<span class="fc" id="L49">                    mediaView.setFitHeight(getHeight());</span>
+<span class="pc bpc" id="L50" title="2 of 4 branches missed.">                    if (jfxPanel.getScene() != null &amp;&amp; jfxPanel.getScene().getRoot() instanceof StackPane) {</span>
+<span class="fc" id="L51">                        StackPane root = (StackPane) jfxPanel.getScene().getRoot();</span>
+<span class="fc" id="L52">                        root.getChildren().clear();</span>
+<span class="fc" id="L53">                        root.getChildren().add(mediaView);</span>
+                    }
+<span class="fc" id="L55">                    mediaPlayer.setOnEndOfMedia(() -&gt; {</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                        if (!isDisposed) {</span>
+<span class="nc" id="L57">                            cleanup();</span>
+                        }
+<span class="nc" id="L59">                    });</span>
+<span class="fc" id="L60">                    isPlaying = true;</span>
+<span class="fc" id="L61">                    mediaPlayer.play();</span>
+<span class="nc" id="L62">                } catch (Exception e) {</span>
+<span class="nc" id="L63">                    System.err.println(&quot;Erro ao iniciar vídeo: &quot; + e.getMessage());</span>
+<span class="nc" id="L64">                    handleError();</span>
+<span class="fc" id="L65">                }</span>
+<span class="fc" id="L66">            });</span>
+<span class="nc" id="L67">        } catch (Exception e) {</span>
+<span class="nc" id="L68">            System.err.println(&quot;Erro ao preparar vídeo: &quot; + e.getMessage());</span>
+<span class="nc" id="L69">            handleError();</span>
+<span class="fc" id="L70">        }</span>
+<span class="fc" id="L71">    }</span>
+
+    private void handleError() {
+<span class="nc" id="L74">        cleanup();</span>
+<span class="nc bnc" id="L75" title="All 4 branches missed.">        if (onVideoEnd != null &amp;&amp; !isDisposed) {</span>
+<span class="nc" id="L76">            SwingUtilities.invokeLater(onVideoEnd);</span>
+        }
+<span class="nc" id="L78">    }</span>
+
+    private void cleanup() {
+<span class="nc" id="L81">        isPlaying = false;</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        if (mediaPlayer != null &amp;&amp; !isDisposed) {</span>
+<span class="nc" id="L83">            Platform.runLater(() -&gt; {</span>
+                try {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                    if (mediaPlayer != null) {</span>
+<span class="nc" id="L86">                        mediaPlayer.stop();</span>
+<span class="nc" id="L87">                        mediaPlayer.dispose();</span>
+                    }
+<span class="nc" id="L89">                } catch (Exception e) {</span>
+<span class="nc" id="L90">                    System.err.println(&quot;Erro ao limpar MediaPlayer: &quot; + e.getMessage());</span>
+                } finally {
+<span class="nc" id="L92">                    mediaPlayer = null;</span>
+                }
+<span class="nc" id="L94">            });</span>
+        }
+<span class="nc bnc" id="L96" title="All 4 branches missed.">        if (onVideoEnd != null &amp;&amp; !isDisposed) {</span>
+<span class="nc" id="L97">            SwingUtilities.invokeLater(onVideoEnd);</span>
+        }
+<span class="nc" id="L99">    }</span>
+
+    public void stop() {
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (!isDisposed) {</span>
+<span class="nc" id="L103">            cleanup();</span>
+        }
+<span class="nc" id="L105">    }</span>
+
+    @Override
+    public void removeNotify() {
+<span class="nc" id="L109">        isDisposed = true;</span>
+<span class="nc" id="L110">        cleanup();</span>
+<span class="nc" id="L111">        super.removeNotify();</span>
+<span class="nc" id="L112">    }</span>
+} 
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
